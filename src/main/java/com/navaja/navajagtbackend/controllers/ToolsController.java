@@ -6,10 +6,12 @@ import com.navaja.navajagtbackend.services.OpenGraphService;
 import com.navaja.navajagtbackend.services.QrCodeService;
 import jakarta.validation.Valid;
 import net.coobird.thumbnailator.Thumbnails;
+import com.navaja.navajagtbackend.security.UsuarioPrincipal;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -57,9 +59,10 @@ public class ToolsController {
 
     @PostMapping("/qr/generate")
     public ResponseEntity<byte[]> generatePremiumQr(
-            @RequestParam(required = false) String usuarioId,
+            @AuthenticationPrincipal UsuarioPrincipal principal,
             @Valid @RequestBody QrGenerateRequest request
     ) {
+        String usuarioId = principal == null ? null : String.valueOf(principal.getId());
         byte[] image = qrCodeService.generarQrPremium(request, usuarioId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)

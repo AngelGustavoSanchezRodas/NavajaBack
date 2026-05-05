@@ -41,3 +41,4 @@ build/
 *.env
 application-local.yaml
 application-secret.yaml
+application.yaml
