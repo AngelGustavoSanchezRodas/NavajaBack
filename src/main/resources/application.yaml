@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: NavajaGtBackend
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  cache:
+    type: simple
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:DevSecretKeyChangeInProduction1234567890}
+    expiration-millis: ${JWT_EXPIRATION_MILLIS:86400000}
+  cache:
+    shortcode-ttl-hours: 24
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:3000}
