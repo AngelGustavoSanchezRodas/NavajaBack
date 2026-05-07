@@ -1,10 +1,12 @@
 package com.navaja.navajagtbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 import java.util.Map;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SignatureMetadata(
         @NotBlank String nombreCompleto,
         @NotBlank String cargo,

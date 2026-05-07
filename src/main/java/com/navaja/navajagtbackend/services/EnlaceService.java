@@ -11,6 +11,8 @@ import com.navaja.navajagtbackend.repositories.UsuarioRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -23,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class EnlaceService {
@@ -31,6 +34,7 @@ public class EnlaceService {
     private final UsuarioRepository usuarioRepository;
     private final ShortcodeGenerator shortcodeGenerator;
     private final QuotaService quotaService;
+    private ObjectMapper objectMapper;
 
     public EnlaceService(
             EnlaceRepository enlaceRepository,
@@ -42,6 +46,11 @@ public class EnlaceService {
         this.usuarioRepository = usuarioRepository;
         this.shortcodeGenerator = shortcodeGenerator;
         this.quotaService = quotaService;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setObjectMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
     }
 
     @Transactional
@@ -81,7 +90,13 @@ public class EnlaceService {
         enlace.setTipoHerramienta(tipoHerramienta);
         enlace.setFechaExpiracion(fechaExpiracion);
         enlace.setTipo(tipoEnlace);
-        enlace.setMetadata(request.metadata());
+        Map<String, Object> finalMetadata = Map.of();
+        if (request.metadata() != null) {
+            finalMetadata = objectMapper.convertValue(request.metadata(), new TypeReference<Map<String, Object>>() {
+            });
+        }
+
+        enlace.setMetadata(finalMetadata);
 
         Enlace saved = guardarEnlace(enlace);
 
@@ -114,6 +129,18 @@ public class EnlaceService {
         }
 
         return enlace;
+    }
+
+    @org.springframework.cache.annotation.Cacheable(value = "enlaces", key = "#alias", unless = "#result == null")
+    public String obtenerUrlOriginalPorAlias(String alias) {
+        Enlace enlace = obtenerEnlacePorCodigoCorto(alias);
+
+        if (estaExpirado(enlace)) {
+            eliminarEnlace(enlace);
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Shortcode expirado");
+        }
+
+        return enlace.getUrlOriginal();
     }
 
     @Transactional

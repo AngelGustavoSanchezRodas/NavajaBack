@@ -32,23 +32,18 @@ public class RedirectController {
         this.frontendUrl = frontendUrl;
     }
 
-    @GetMapping("/{shortcode}")
-    public ResponseEntity<Void> redirigir(
-            @PathVariable String shortcode,
+    @GetMapping("/api/core/links/public/{alias}")
+    public ResponseEntity<Void> redirigirPublic(
+            @PathVariable("alias") String alias,
             HttpServletRequest request
     ) {
-        Enlace enlace = enlaceService.obtenerEnlacePorCodigoCorto(shortcode);
-
-        if (estaExpirado(enlace)) {
-            enlaceService.eliminarEnlace(enlace);
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Shortcode expirado");
-        }
+        String redirectUrl = enlaceService.obtenerUrlOriginalPorAlias(alias);
 
         String ip = request.getRemoteAddr();
         String userAgent = request.getHeader("User-Agent");
-        clicAsyncService.registrarClicAsync(enlace.getId(), ip, userAgent);
 
-        String redirectUrl = resolverRedirect(enlace, shortcode);
+        // Registro asíncrono: no bloquea la respuesta HTTP
+        clicAsyncService.registrarClicAsync(alias, ip, userAgent);
 
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(redirectUrl))
