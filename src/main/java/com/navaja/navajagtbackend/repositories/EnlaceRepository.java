@@ -16,6 +16,10 @@ public interface EnlaceRepository extends JpaRepository<Enlace, Long> {
 
     List<Enlace> findByUsuarioId(Long usuarioId);
 
+    List<Enlace> findAllByUsuarioIdOrderByFechaCreacionDesc(String usuarioId);
+
+    List<Enlace> findAllByOrderByFechaCreacionDesc();
+
     long countByUsuario(Usuario usuario);
 
     long countByUsuarioIdAndTipoHerramienta(Long usuarioId, String tipoHerramienta);

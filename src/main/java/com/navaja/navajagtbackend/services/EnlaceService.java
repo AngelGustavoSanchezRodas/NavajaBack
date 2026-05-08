@@ -112,8 +112,8 @@ public class EnlaceService {
     @Transactional(readOnly = true)
     public List<EnlaceResponse> listarEnlaces(Long usuarioId) {
         List<Enlace> enlaces = usuarioId == null
-                ? enlaceRepository.findAll()
-                : enlaceRepository.findByUsuarioId(usuarioId);
+                ? enlaceRepository.findAllByOrderByFechaCreacionDesc()
+                : enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(String.valueOf(usuarioId));
 
         return enlaces.stream().map(this::toResponse).toList();
     }

@@ -76,8 +76,9 @@ public class QuotaService {
         }
 
         Set<String> TEMPLATES_BASICOS = Set.of("1", "2");
+        String templateNormalizado = templateId.trim();
 
-        if (!TEMPLATES_BASICOS.contains(templateId)) {
+        if (!TEMPLATES_BASICOS.contains(templateNormalizado)) {
             if (!validarPlanPremium(usuarioId)) {
                 throw new AccesoDenegadoException("La plantilla seleccionada es exclusiva del plan PRO");
             }
