@@ -24,7 +24,7 @@ public class ManagementLinksController {
         this.enlaceService = enlaceService;
     }
 
-    @GetMapping("/api/management/links/list/")
+    @GetMapping("/api/management/links/list")
     public ResponseEntity<List<EnlaceResponse>> listarEnlaces(@RequestParam(required = false) Long usuarioId) {
         return ResponseEntity.ok(enlaceService.listarEnlaces(usuarioId));
     }

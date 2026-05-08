@@ -19,10 +19,9 @@ public class CoreLinksController {
         this.enlaceService = enlaceService;
     }
 
-    @PostMapping("/api/core/links/create/")
+    @PostMapping("/api/core/links/create")
     public ResponseEntity<EnlaceResponse> crearEnlace(@Valid @RequestBody CrearEnlaceRequest request) {
         EnlaceResponse response = enlaceService.crearEnlace(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
-
