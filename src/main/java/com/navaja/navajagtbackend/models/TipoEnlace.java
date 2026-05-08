@@ -4,5 +4,6 @@ public enum TipoEnlace {
     STANDARD,
     WHATSAPP,
     SIGNATURE,
-    MENU_QR
+    MENU_QR,
+    QR
 }

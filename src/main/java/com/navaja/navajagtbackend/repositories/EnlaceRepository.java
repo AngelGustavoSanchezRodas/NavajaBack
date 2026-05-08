@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface EnlaceRepository extends JpaRepository<Enlace, Long> {
+    Optional<Enlace> findByIdAndUsuarioId(Long id, Long usuarioId);
+
     Optional<Enlace> findByCodigoCorto(String codigoCorto);
 
     boolean existsByCodigoCorto(String codigoCorto);
@@ -24,4 +26,3 @@ public interface EnlaceRepository extends JpaRepository<Enlace, Long> {
 
     List<Enlace> findByFechaExpiracionBefore(OffsetDateTime fechaExpiracion);
 }
-

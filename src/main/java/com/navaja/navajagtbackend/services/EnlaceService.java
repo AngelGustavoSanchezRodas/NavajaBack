@@ -3,10 +3,12 @@ package com.navaja.navajagtbackend.services;
 import com.navaja.navajagtbackend.dto.CrearEnlaceRequest;
 import com.navaja.navajagtbackend.dto.EnlaceResponse;
 import com.navaja.navajagtbackend.exceptions.AliasEnUsoException;
+import com.navaja.navajagtbackend.exceptions.EnlaceNoEncontradoException;
 import com.navaja.navajagtbackend.models.Enlace;
 import com.navaja.navajagtbackend.models.TipoEnlace;
 import com.navaja.navajagtbackend.models.Usuario;
 import com.navaja.navajagtbackend.repositories.EnlaceRepository;
+import com.navaja.navajagtbackend.repositories.ClicRepository;
 import com.navaja.navajagtbackend.repositories.UsuarioRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -34,18 +36,21 @@ public class EnlaceService {
     private final UsuarioRepository usuarioRepository;
     private final ShortcodeGenerator shortcodeGenerator;
     private final QuotaService quotaService;
+    private final ClicRepository clicRepository;
     private ObjectMapper objectMapper;
 
     public EnlaceService(
             EnlaceRepository enlaceRepository,
             UsuarioRepository usuarioRepository,
             ShortcodeGenerator shortcodeGenerator,
-            QuotaService quotaService
+            QuotaService quotaService,
+            ClicRepository clicRepository
     ) {
         this.enlaceRepository = enlaceRepository;
         this.usuarioRepository = usuarioRepository;
         this.shortcodeGenerator = shortcodeGenerator;
         this.quotaService = quotaService;
+        this.clicRepository = clicRepository;
     }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -76,6 +81,12 @@ public class EnlaceService {
             String templateId = templateObj == null ? null : String.valueOf(templateObj);
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
             quotaService.validarCreacionFirma(usuarioIdStr, templateId);
+        } else if (tipoEnlace == TipoEnlace.STANDARD) {
+            String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
+            quotaService.validarCreacionAcortador(usuarioIdStr);
+        } else if (tipoEnlace == TipoEnlace.QR) {
+            String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
+            quotaService.validarCreacionQr(usuarioIdStr);
         }
 
         String codigoCorto = resolverCodigoCorto(request);
@@ -146,6 +157,15 @@ public class EnlaceService {
     @Transactional
     @CacheEvict(value = "enlaces", key = "#enlace.codigoCorto")
     public void eliminarEnlace(Enlace enlace) {
+        enlaceRepository.delete(enlace);
+    }
+
+    @Transactional
+    public void eliminarEnlacePropietario(Long enlaceId, Long usuarioId) {
+        Enlace enlace = enlaceRepository.findByIdAndUsuarioId(enlaceId, usuarioId)
+                .orElseThrow(EnlaceNoEncontradoException::new);
+
+        clicRepository.deleteByEnlaceId(enlace.getId());
         enlaceRepository.delete(enlace);
     }
 

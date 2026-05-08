@@ -14,7 +14,7 @@ public class ManejadorExcepcionesGlobal {
     @ExceptionHandler(LimiteExcedidoException.class)
     @SuppressWarnings("unused")
     public ResponseEntity<ErrorResponse> handleLimiteExcedido(LimiteExcedidoException exception) {
-        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(new ErrorResponse(
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(
                 "LIMITE_EXCEDIDO",
                 exception.getMessage()
         ));

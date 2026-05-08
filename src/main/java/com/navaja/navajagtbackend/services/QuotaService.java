@@ -104,6 +104,58 @@ public class QuotaService {
         }
     }
 
+    public void validarCreacionAcortador(String usuarioId) {
+        if (!StringUtils.hasText(usuarioId)) {
+            return;
+        }
+
+        long id;
+        try {
+            id = Long.parseLong(usuarioId);
+        } catch (NumberFormatException ex) {
+            return;
+        }
+
+        boolean esFree = usuarioRepository.findById(id)
+                .map(usuario -> usuario.getPlan() == PlanUsuario.FREE)
+                .orElse(true);
+
+        if (!esFree) {
+            return;
+        }
+
+        long count = enlaceRepository.countByUsuarioIdAndTipo(id, TipoEnlace.STANDARD);
+        if (count >= 3) {
+            throw new LimiteExcedidoException("Has alcanzado el límite de 3 enlaces cortos gratuitos. Actualiza a PRO.");
+        }
+    }
+
+    public void validarCreacionQr(String usuarioId) {
+        if (!StringUtils.hasText(usuarioId)) {
+            return;
+        }
+
+        long id;
+        try {
+            id = Long.parseLong(usuarioId);
+        } catch (NumberFormatException ex) {
+            return;
+        }
+
+        boolean esFree = usuarioRepository.findById(id)
+                .map(usuario -> usuario.getPlan() == PlanUsuario.FREE)
+                .orElse(true);
+
+        if (!esFree) {
+            return;
+        }
+
+        long count = enlaceRepository.countByUsuarioIdAndTipo(id, TipoEnlace.QR);
+        if (count >= 3) {
+            throw new LimiteExcedidoException("Has alcanzado el límite de 3 códigos QR gratuitos. Actualiza a PRO para crear ilimitados.");
+        }
+    }
+
     private int limiteMaximo(PlanUsuario planUsuario) {
         PlanUsuario plan = planUsuario == null ? PlanUsuario.FREE : planUsuario;
 
@@ -113,4 +165,3 @@ public class QuotaService {
         };
     }
 }
-
