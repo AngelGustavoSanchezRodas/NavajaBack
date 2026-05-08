@@ -14,20 +14,14 @@ public interface EnlaceRepository extends JpaRepository<Enlace, Long> {
 
     boolean existsByCodigoCorto(String codigoCorto);
 
-    List<Enlace> findByUsuarioId(Long usuarioId);
-
     List<Enlace> findAllByUsuarioIdOrderByFechaCreacionDesc(String usuarioId);
 
     List<Enlace> findAllByOrderByFechaCreacionDesc();
 
     long countByUsuario(Usuario usuario);
 
-    long countByUsuarioIdAndTipoHerramienta(Long usuarioId, String tipoHerramienta);
-
     long countByUsuarioIdAndTipo(Long usuarioId, TipoEnlace tipo);
 
     List<Enlace> findByFechaExpiracionBefore(OffsetDateTime fechaExpiracion);
-
-    long deleteByFechaExpiracionBefore(OffsetDateTime fechaExpiracion);
 }
 
