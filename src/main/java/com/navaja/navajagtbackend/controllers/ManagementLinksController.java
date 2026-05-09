@@ -25,8 +25,13 @@ public class ManagementLinksController {
     }
 
     @GetMapping("/api/management/links/list")
-    public ResponseEntity<List<EnlaceResponse>> listarEnlaces(@RequestParam(required = false) Long usuarioId) {
-        return ResponseEntity.ok(enlaceService.listarEnlaces(usuarioId));
+    public ResponseEntity<List<EnlaceResponse>> listarEnlaces(
+            @AuthenticationPrincipal UsuarioPrincipal principal
+    ) {
+        if (principal == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(enlaceService.listarEnlaces(principal.getId()));
     }
 
     @DeleteMapping("/api/management/links/{id}")

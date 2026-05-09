@@ -16,9 +16,7 @@ public interface EnlaceRepository extends JpaRepository<Enlace, Long> {
 
     boolean existsByCodigoCorto(String codigoCorto);
 
-    List<Enlace> findAllByUsuarioIdOrderByFechaCreacionDesc(String usuarioId);
-
-    List<Enlace> findAllByOrderByFechaCreacionDesc();
+    List<Enlace> findAllByUsuarioIdOrderByFechaCreacionDesc(Long usuarioId);
 
     long countByUsuario(Usuario usuario);
 

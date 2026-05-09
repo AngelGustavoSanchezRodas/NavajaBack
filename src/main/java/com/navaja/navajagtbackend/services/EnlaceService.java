@@ -122,9 +122,10 @@ public class EnlaceService {
 
     @Transactional(readOnly = true)
     public List<EnlaceResponse> listarEnlaces(Long usuarioId) {
-        List<Enlace> enlaces = usuarioId == null
-                ? enlaceRepository.findAllByOrderByFechaCreacionDesc()
-                : enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(String.valueOf(usuarioId));
+        if (usuarioId == null) {
+            throw new IllegalArgumentException("El usuarioId es obligatorio para listar enlaces");
+        }
+        List<Enlace> enlaces = enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(usuarioId);
 
         return enlaces.stream().map(this::toResponse).toList();
     }
