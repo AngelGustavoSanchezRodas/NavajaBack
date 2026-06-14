@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.navaja</groupId>
-    <artifactId>ArqHexagonal</artifactId>
+    <artifactId>navaja-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>ArqHexagonal</name>
-    <description>ArqHexagonal</description>
+    <name>NavajaBack</name>
+    <description>NavajaBack</description>
     <url/>
     <licenses>
         <license/>

@@ -12,7 +12,7 @@
 
 ## Construcción Local
 - [x] `mvnw clean package -DskipTests` ✅
-- [x] JAR generado: `ArqHexagonal-0.0.1-SNAPSHOT.jar` (70MB)
+- [x] JAR generado: `navaja-backend-0.0.1-SNAPSHOT.jar` (70MB)
 - [x] Compilación sin errores
 
 ## Variables de Entorno en Render
@@ -74,4 +74,3 @@ Para dominio custom:
 ---
 
 **Ready to deploy!** 🚀
-
