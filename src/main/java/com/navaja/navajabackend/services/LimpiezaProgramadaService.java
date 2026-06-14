@@ -1,31 +1,32 @@
 package com.navaja.navajabackend.services;
 
-import com.navaja.navajabackend.models.Enlace;
 import com.navaja.navajabackend.repositories.EnlaceRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.time.OffsetDateTime;
 
 @Service
 public class LimpiezaProgramadaService {
 
-    private final EnlaceRepository enlaceRepository;
-    private final EnlaceService enlaceService;
+    private static final Logger log = LoggerFactory.getLogger(LimpiezaProgramadaService.class);
 
-    public LimpiezaProgramadaService(EnlaceRepository enlaceRepository, EnlaceService enlaceService) {
+    private final EnlaceRepository enlaceRepository;
+
+    public LimpiezaProgramadaService(EnlaceRepository enlaceRepository) {
         this.enlaceRepository = enlaceRepository;
-        this.enlaceService = enlaceService;
     }
 
     @Scheduled(cron = "0 0 3 * * ?")
     @Transactional
     public void limpiarEnlacesExpirados() {
-        List<Enlace> expirados = enlaceRepository.findByFechaExpiracionBefore(OffsetDateTime.now());
-        expirados.forEach(enlaceService::eliminarEnlace);
+        int eliminados = enlaceRepository.deleteByFechaExpiracionBefore(OffsetDateTime.now());
+        if (eliminados > 0) {
+            log.info("Limpieza programada: {} enlaces expirados eliminados", eliminados);
+        }
     }
 }
-
 

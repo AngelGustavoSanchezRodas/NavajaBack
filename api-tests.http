@@ -22,7 +22,7 @@ Content-Type: application/json
 }
 
 ### 2) Create link
-POST {{baseUrl}}/api/core/links/create/
+POST {{baseUrl}}/api/core/links/create
 Content-Type: application/json
 
 {
@@ -33,11 +33,16 @@ Content-Type: application/json
 }
 
 ### 3) Redirect by shortcode
-# Tip: disable automatic redirects in the REST Client if you want to inspect the 302 response.
-GET {{baseUrl}}/{{shortcode}}
+GET {{baseUrl}}/api/core/links/public/{{shortcode}}
 
-### 4) Management list (JWT protected)
-GET {{baseUrl}}/api/management/links/list/
+### 4) Public link info
+GET {{baseUrl}}/api/v1/public/enlaces/{{shortcode}}
+
+### 5) Management list (JWT protected)
+GET {{baseUrl}}/api/management/links/list
 Authorization: {{jwt}}
 Accept: application/json
 
+### 6) Tools
+GET {{baseUrl}}/api/v1/tools/qr?url=https://google.com
+GET {{baseUrl}}/api/v1/tools/opengraph?url=https://github.com

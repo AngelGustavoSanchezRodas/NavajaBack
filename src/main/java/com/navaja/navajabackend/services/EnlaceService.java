@@ -9,18 +9,11 @@ import com.navaja.navajabackend.models.TipoEnlace;
 import com.navaja.navajabackend.models.Usuario;
 import com.navaja.navajabackend.repositories.EnlaceRepository;
 import com.navaja.navajabackend.repositories.ClicRepository;
-import com.navaja.navajabackend.repositories.UsuarioRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.CacheManager;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -28,38 +21,41 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class EnlaceService {
 
+    private static final int MAX_SHORTCODE_ATTEMPTS = 10;
+
     private final EnlaceRepository enlaceRepository;
-    private final UsuarioRepository usuarioRepository;
     private final ShortcodeGenerator shortcodeGenerator;
     private final QuotaService quotaService;
     private final ClicRepository clicRepository;
     private final CacheManager cacheManager;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final AuthenticatedUserResolver authenticatedUserResolver;
+    private final EnlaceMapper enlaceMapper;
 
     public EnlaceService(
             EnlaceRepository enlaceRepository,
-            UsuarioRepository usuarioRepository,
             ShortcodeGenerator shortcodeGenerator,
             QuotaService quotaService,
             ClicRepository clicRepository,
-            CacheManager cacheManager
+            CacheManager cacheManager,
+            AuthenticatedUserResolver authenticatedUserResolver,
+            EnlaceMapper enlaceMapper
     ) {
         this.enlaceRepository = enlaceRepository;
-        this.usuarioRepository = usuarioRepository;
         this.shortcodeGenerator = shortcodeGenerator;
         this.quotaService = quotaService;
         this.clicRepository = clicRepository;
         this.cacheManager = cacheManager;
+        this.authenticatedUserResolver = authenticatedUserResolver;
+        this.enlaceMapper = enlaceMapper;
     }
 
     @Transactional
     public EnlaceResponse crearEnlace(CrearEnlaceRequest request) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = authenticatedUserResolver.resolveOrNull();
         String aliasPersonalizado = request.alias();
         String tipoHerramienta = normalizarTipoHerramienta(request.tipoHerramienta());
         TipoEnlace tipoEnlace = request.tipo() != null ? request.tipo() : TipoEnlace.STANDARD;
@@ -100,14 +96,11 @@ public class EnlaceService {
         enlace.setTipoHerramienta(tipoHerramienta);
         enlace.setFechaExpiracion(fechaExpiracion);
         enlace.setTipo(tipoEnlace);
-        enlace.setMetadata(request.metadata() == null
-                ? Map.of()
-                : objectMapper.convertValue(request.metadata(), new TypeReference<Map<String, Object>>() {
-                }));
+        enlace.setMetadata(enlaceMapper.toMetadata(request.metadata()));
 
         Enlace saved = guardarEnlace(enlace);
 
-        return toResponse(saved);
+        return enlaceMapper.toResponse(saved);
     }
 
     @Transactional
@@ -123,7 +116,7 @@ public class EnlaceService {
         }
         List<Enlace> enlaces = enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(usuarioId);
 
-        return enlaces.stream().map(this::toResponse).toList();
+        return enlaces.stream().map(enlaceMapper::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -174,42 +167,14 @@ public class EnlaceService {
     }
 
     private String generateUniqueShortcode() {
-        String shortcode = shortcodeGenerator.generate();
-        while (enlaceRepository.existsByCodigoCorto(shortcode)) {
-            shortcode = shortcodeGenerator.generate();
-        }
-        return shortcode;
-    }
-
-    private EnlaceResponse toResponse(Enlace enlace) {
-        Long usuarioId = enlace.getUsuario() != null ? enlace.getUsuario().getId() : null;
-        return new EnlaceResponse(
-                enlace.getId(),
-                enlace.getCodigoCorto(),
-                enlace.getUrlOriginal(),
-                enlace.isEsDinamico(),
-                usuarioId,
-                enlace.getFechaCreacion(),
-                enlace.getTipoHerramienta(),
-                enlace.getFechaExpiracion(),
-                enlace.getTipo(),
-                enlace.getMetadata()
-        );
-    }
-
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
-            return null;
+        for (int attempt = 0; attempt < MAX_SHORTCODE_ATTEMPTS; attempt++) {
+            String shortcode = shortcodeGenerator.generate();
+            if (!enlaceRepository.existsByCodigoCorto(shortcode)) {
+                return shortcode;
+            }
         }
 
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails userDetails) {
-            return usuarioRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario autenticado no encontrado"));
-        }
-
-        return null;
+        throw new IllegalStateException("No fue posible generar un shortcode único");
     }
 
     private boolean estaExpirado(Enlace enlace) {

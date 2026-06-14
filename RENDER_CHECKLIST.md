@@ -42,13 +42,13 @@ PORT=8080
 
 ```bash
 # Health Check
-curl https://your-render-url.onrender.com/api/v1/public/health
+curl https://your-host/actuator/health
 
 # Generar QR
-curl "https://your-render-url.onrender.com/api/v1/tools/qr?url=https://google.com" -o qr.png
+curl "https://your-host/api/v1/tools/qr?url=https://google.com" -o qr.png
 
 # Login
-curl -X POST https://your-render-url.onrender.com/api/auth/login \
+curl -X POST https://your-host/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","contrasena":"password123"}'
 ```
@@ -57,7 +57,7 @@ curl -X POST https://your-render-url.onrender.com/api/auth/login \
 
 Render asigna automáticamente algo como:
 ```
-https://navaja-backend-xxxx.onrender.com
+https://your-host
 ```
 
 Para dominio custom:

@@ -6,6 +6,8 @@ import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -15,6 +17,8 @@ import java.util.Locale;
 
 @Service
 public class OpenGraphService {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenGraphService.class);
 
     private static final int TIMEOUT_MILLIS = 3000;
 
@@ -39,8 +43,10 @@ public class OpenGraphService {
                     metaContent(document, "og:image")
             );
         } catch (HttpStatusException | SocketTimeoutException | UnknownHostException exception) {
+            log.warn("OpenGraph lookup failed for url={}: {}", url, exception.getMessage());
             return OpenGraphData.empty();
         } catch (IOException exception) {
+            log.warn("OpenGraph parse failed for url={}: {}", url, exception.getMessage());
             return OpenGraphData.empty();
         }
     }
@@ -60,4 +66,3 @@ public class OpenGraphService {
         return value;
     }
 }
-

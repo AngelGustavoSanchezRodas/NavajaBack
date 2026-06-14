@@ -2,14 +2,13 @@ package com.navaja.navajabackend.controllers;
 
 import com.navaja.navajabackend.dto.OpenGraphData;
 import com.navaja.navajabackend.dto.QrGenerateRequest;
+import com.navaja.navajabackend.services.ImageConversionService;
 import com.navaja.navajabackend.services.OpenGraphService;
 import com.navaja.navajabackend.services.QrCodeService;
 import com.navaja.navajabackend.services.QuotaService;
 import jakarta.validation.Valid;
-import net.coobird.thumbnailator.Thumbnails;
 import com.navaja.navajabackend.security.UsuarioPrincipal;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,11 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.ContentDisposition;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -34,11 +28,13 @@ public class ToolsController {
     private final QrCodeService qrCodeService;
     private final OpenGraphService openGraphService;
     private final QuotaService quotaService;
+    private final ImageConversionService imageConversionService;
 
-    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService) {
+    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService) {
         this.qrCodeService = qrCodeService;
         this.openGraphService = openGraphService;
         this.quotaService = quotaService;
+        this.imageConversionService = imageConversionService;
     }
 
     @GetMapping("/qr")
@@ -76,63 +72,12 @@ public class ToolsController {
     @PostMapping(value = "/convert-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<byte[]> convertImage(
             @AuthenticationPrincipal UsuarioPrincipal principal,
-            @RequestParam("file") MultipartFile file,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam("format") String format
     ) {
         String usuarioId = principal == null ? null : String.valueOf(principal.getId());
-
-        String formatoValidado = validarYNormalizarFormato(format);
-
-        quotaService.validarConversionPremium(usuarioId, formatoValidado);
-
-        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            Thumbnails.of(file.getInputStream())
-                    .scale(1.0)
-                    .outputFormat(formatoValidado.toLowerCase())
-                    .toOutputStream(os);
-
-            MediaType mediaType = resolverMediaType(formatoValidado);
-            String nombreArchivo = "converted-image." + formatoValidado.toLowerCase();
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(mediaType);
-            headers.setContentDisposition(ContentDisposition.attachment().filename(nombreArchivo).build());
-            return new ResponseEntity<>(os.toByteArray(), headers, HttpStatus.OK);
-        } catch (IOException exception) {
-            throw new IllegalArgumentException("No fue posible convertir la imagen", exception);
-        }
-    }
-
-    private String validarYNormalizarFormato(String formato) {
-        if (formato == null || formato.isBlank()) {
-            throw new IllegalArgumentException("El formato no puede estar vacío");
-        }
-
-        String formatoUpper = formato.toUpperCase();
-
-        if ("SVG".equals(formatoUpper)) {
-            throw new IllegalArgumentException("El formato SVG no está soportado");
-        }
-
-        if ("JPG".equals(formatoUpper) || "JPEG".equals(formatoUpper) || "PNG".equals(formatoUpper) ||
-            "WEBP".equals(formatoUpper) || "TIFF".equals(formatoUpper) || "TIF".equals(formatoUpper) ||
-            "BMP".equals(formatoUpper) || "GIF".equals(formatoUpper)) {
-            return "JPG".equals(formatoUpper) ? "jpg" : ("JPEG".equals(formatoUpper) ? "jpg" : ("TIF".equals(formatoUpper) ? "tiff" : formatoUpper.toLowerCase()));
-        }
-
-        throw new IllegalArgumentException("El formato " + formato + " no está soportado");
-    }
-
-    private MediaType resolverMediaType(String formato) {
-        return switch (formato.toLowerCase()) {
-            case "jpg" -> MediaType.IMAGE_JPEG;
-            case "png" -> MediaType.IMAGE_PNG;
-            case "webp" -> MediaType.valueOf("image/webp");
-            case "tiff" -> MediaType.valueOf("image/tiff");
-            case "bmp" -> MediaType.valueOf("image/bmp");
-            case "gif" -> MediaType.IMAGE_GIF;
-            default -> MediaType.APPLICATION_OCTET_STREAM;
-        };
+        quotaService.validarConversionPremium(usuarioId, format);
+        return imageConversionService.convert(file, format);
     }
 
     private void validateHttpUri(String value) {
@@ -150,5 +95,4 @@ public class ToolsController {
         }
     }
 }
-
 

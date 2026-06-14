@@ -1,6 +1,8 @@
 spring:
   application:
     name: NavajaBack
+  mvc:
+    log-resolved-exception: true
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:default}
   servlet:
@@ -37,3 +39,13 @@ app:
     shortcode-ttl-hours: 24
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
+
+springdoc:
+  scalar:
+    enabled: true
+    path: /scalar
+  swagger-ui:
+    enabled: false
+
+server:
+  forward-headers-strategy: framework
