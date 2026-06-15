@@ -21,6 +21,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import com.navaja.navajabackend.dto.ActualizarEnlaceRequest;
+import java.util.Map;
+import com.navaja.navajabackend.security.UrlSecurityValidator;
 
 @Service
 public class EnlaceService {
@@ -34,6 +37,7 @@ public class EnlaceService {
     private final CacheManager cacheManager;
     private final AuthenticatedUserResolver authenticatedUserResolver;
     private final EnlaceMapper enlaceMapper;
+    private final UrlSecurityValidator urlSecurityValidator;
 
     public EnlaceService(
             EnlaceRepository enlaceRepository,
@@ -42,7 +46,8 @@ public class EnlaceService {
             ClicRepository clicRepository,
             CacheManager cacheManager,
             AuthenticatedUserResolver authenticatedUserResolver,
-            EnlaceMapper enlaceMapper
+            EnlaceMapper enlaceMapper,
+            UrlSecurityValidator urlSecurityValidator
     ) {
         this.enlaceRepository = enlaceRepository;
         this.shortcodeGenerator = shortcodeGenerator;
@@ -51,6 +56,7 @@ public class EnlaceService {
         this.cacheManager = cacheManager;
         this.authenticatedUserResolver = authenticatedUserResolver;
         this.enlaceMapper = enlaceMapper;
+        this.urlSecurityValidator = urlSecurityValidator;
     }
 
     @Transactional
@@ -68,7 +74,7 @@ public class EnlaceService {
         if (usuario != null) {
             quotaService.verificarLimite(usuario, aliasPersonalizado);
         } else {
-            fechaExpiracion = OffsetDateTime.now().plusDays(30);
+            fechaExpiracion = OffsetDateTime.now().plusHours(24);
         }
 
         if (tipoEnlace == TipoEnlace.SIGNATURE) {
@@ -78,10 +84,10 @@ public class EnlaceService {
             quotaService.validarCreacionFirma(usuarioIdStr, templateId);
         } else if (tipoEnlace == TipoEnlace.STANDARD) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionAcortador(usuarioIdStr);
+            quotaService.validarCreacionAcortador(usuarioIdStr, request.alias());
         } else if (tipoEnlace == TipoEnlace.QR) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionQr(usuarioIdStr);
+            quotaService.validarCreacionQr(usuarioIdStr, request.alias());
         }
 
         String codigoCorto = resolverCodigoCorto(request);
@@ -96,7 +102,15 @@ public class EnlaceService {
         enlace.setTipoHerramienta(tipoHerramienta);
         enlace.setFechaExpiracion(fechaExpiracion);
         enlace.setTipo(tipoEnlace);
-        enlace.setMetadata(enlaceMapper.toMetadata(request.metadata()));
+        
+        Map<String, Object> mapMeta = enlaceMapper.toMetadata(request.metadata());
+        if (tipoEnlace == TipoEnlace.SIGNATURE && mapMeta != null && mapMeta.get("imageUrl") != null) {
+            urlSecurityValidator.validateImageUrl(String.valueOf(mapMeta.get("imageUrl")));
+        } else if (request.urlOriginal() != null && !request.urlOriginal().isBlank()) {
+            urlSecurityValidator.validateSafeUrl(request.urlOriginal());
+        }
+
+        enlace.setMetadata(mapMeta);
 
         Enlace saved = guardarEnlace(enlace);
 
@@ -109,12 +123,54 @@ public class EnlaceService {
         return enlaceRepository.save(enlace);
     }
 
+    @Transactional
+    @CacheEvict(value = "enlaces", key = "#result.codigoCorto")
+    public EnlaceResponse actualizarEnlace(Long enlaceId, ActualizarEnlaceRequest request) {
+        Usuario usuario = authenticatedUserResolver.resolveOrNull();
+        if (usuario == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
+        }
+
+        Enlace enlace = enlaceRepository.findByIdAndUsuarioId(enlaceId, usuario.getId())
+                .orElseThrow(EnlaceNoEncontradoException::new);
+
+        if (request.urlOriginal() != null && !request.urlOriginal().isBlank()) {
+            urlSecurityValidator.validateSafeUrl(request.urlOriginal());
+            enlace.setUrlOriginal(request.urlOriginal());
+        }
+
+        if (request.esDinamico() != null) {
+            enlace.setEsDinamico(request.esDinamico());
+        }
+
+        if (request.metadata() != null) {
+            Map<String, Object> newMeta = enlaceMapper.toMetadata(request.metadata());
+            if (enlace.getTipo() == TipoEnlace.SIGNATURE && newMeta.get("imageUrl") != null) {
+                urlSecurityValidator.validateImageUrl(String.valueOf(newMeta.get("imageUrl")));
+            }
+            enlace.setMetadata(newMeta);
+        }
+
+        Enlace saved = guardarEnlace(enlace);
+        return enlaceMapper.toResponse(saved);
+    }
+
     @Transactional(readOnly = true)
     public List<EnlaceResponse> listarEnlaces(Long usuarioId) {
         if (usuarioId == null) {
             throw new IllegalArgumentException("El usuarioId es obligatorio para listar enlaces");
         }
         List<Enlace> enlaces = enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(usuarioId);
+
+        return enlaces.stream().map(enlaceMapper::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EnlaceResponse> listarEnlacesPorTipo(Long usuarioId, TipoEnlace tipo) {
+        if (usuarioId == null) {
+            throw new IllegalArgumentException("El usuarioId es obligatorio para listar enlaces");
+        }
+        List<Enlace> enlaces = enlaceRepository.findAllByUsuarioIdAndTipoOrderByFechaCreacionDesc(usuarioId, tipo);
 
         return enlaces.stream().map(enlaceMapper::toResponse).toList();
     }

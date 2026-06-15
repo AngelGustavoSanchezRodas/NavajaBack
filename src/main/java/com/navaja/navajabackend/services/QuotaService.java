@@ -4,21 +4,34 @@ import com.navaja.navajabackend.exceptions.AccesoDenegadoException;
 import com.navaja.navajabackend.exceptions.LimiteExcedidoException;
 import com.navaja.navajabackend.models.PlanUsuario;
 import com.navaja.navajabackend.models.Usuario;
-import com.navaja.navajabackend.repositories.EnlaceRepository;
-import com.navaja.navajabackend.models.TipoEnlace;
-import java.util.Set;
 import com.navaja.navajabackend.repositories.UsuarioRepository;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class QuotaService {
 
-    private final EnlaceRepository enlaceRepository;
-    private final UsuarioRepository usuarioRepository;
+    private static final Duration VENTANA_USO = Duration.ofHours(24);
+    private static final int LIMITE_GRATIS_ENLACES = 3;
+    private static final int LIMITE_GRATIS_QR = 4;
+    private static final int LIMITE_GRATIS_FIRMAS = 1;
+    private static final int LIMITE_GRATIS_CONVERSIONES = 5;
+    private static final int LIMITE_INVITADO_ENLACES = 1;
+    private static final int LIMITE_INVITADO_QR = 1;
+    private static final int LIMITE_INVITADO_CONVERSIONES = 1;
 
-    public QuotaService(EnlaceRepository enlaceRepository, UsuarioRepository usuarioRepository) {
-        this.enlaceRepository = enlaceRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final ConcurrentMap<String, UsoVentana> usos = new ConcurrentHashMap<>();
+
+    public QuotaService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
     }
 
@@ -33,12 +46,6 @@ public class QuotaService {
 
         if (usuario.getPlan() == PlanUsuario.FREE && StringUtils.hasText(aliasPersonalizado)) {
             throw new AccesoDenegadoException();
-        }
-
-        long usados = enlaceRepository.countByUsuario(usuario);
-        int limite = limiteMaximo(usuario.getPlan());
-        if (usados >= limite) {
-            throw new LimiteExcedidoException("Has alcanzado el límite de enlaces de tu plan.");
         }
     }
 
@@ -83,86 +90,139 @@ public class QuotaService {
                 throw new AccesoDenegadoException("La plantilla seleccionada es exclusiva del plan PRO");
             }
         }
-
-        if (!java.util.Objects.isNull(usuarioId) && usuarioId.trim().length() > 0) {
-            long id;
-            try {
-                id = Long.parseLong(usuarioId);
-            } catch (NumberFormatException ex) {
-                return; // cannot evaluate quota without valid id
-            }
-
-            long firmasActivas = enlaceRepository.countByUsuarioIdAndTipo(id, TipoEnlace.SIGNATURE);
-
-            boolean esFree = usuarioRepository.findById(id)
-                    .map(usuario -> usuario.getPlan() == PlanUsuario.FREE)
-                    .orElse(true);
-
-            if (esFree && firmasActivas >= 1) {
-                throw new AccesoDenegadoException("Los usuarios gratuitos solo pueden tener 1 firma activa");
-            }
-        }
     }
 
-    public void validarCreacionAcortador(String usuarioId) {
+    public void validarCreacionAcortador(String usuarioId, String identificadorCliente) {
+        validarUso("STANDARD", usuarioId, identificadorCliente);
+    }
+
+    public void registrarCreacionAcortador(String usuarioId, String identificadorCliente) {
+        registrarUso("STANDARD", usuarioId, identificadorCliente);
+    }
+
+    public void validarCreacionQr(String usuarioId, String identificadorCliente) {
+        validarUso("QR", usuarioId, identificadorCliente);
+    }
+
+    public void registrarCreacionQr(String usuarioId, String identificadorCliente) {
+        registrarUso("QR", usuarioId, identificadorCliente);
+    }
+
+    public void validarUsoConversionImagen(String usuarioId, String identificadorCliente) {
+        validarUso("IMAGE_CONVERSION", usuarioId, identificadorCliente);
+    }
+
+    public void registrarUsoConversionImagen(String usuarioId, String identificadorCliente) {
+        registrarUso("IMAGE_CONVERSION", usuarioId, identificadorCliente);
+    }
+
+    public void registrarCreacionFirma(String usuarioId, String identificadorCliente) {
+        registrarUso("SIGNATURE", usuarioId, identificadorCliente);
+    }
+
+    public void validarUsoFirma(String usuarioId, String identificadorCliente) {
         if (!StringUtils.hasText(usuarioId)) {
+            throw new AccesoDenegadoException("Las firmas requieren una cuenta registrada");
+        }
+        validarUso("SIGNATURE", usuarioId, identificadorCliente);
+    }
+
+    private void validarUso(String tipoUso, String usuarioId, String identificadorCliente) {
+        if (validarPlanPremium(usuarioId)) {
             return;
         }
 
-        long id;
-        try {
-            id = Long.parseLong(usuarioId);
-        } catch (NumberFormatException ex) {
-            return;
-        }
+        int limite = limiteMaximo(tipoUso, usuarioId);
+        String clave = claveUso(usuarioId, identificadorCliente, tipoUso);
+        UsoVentana usoVentana = usos.compute(clave, (key, actual) -> normalizarVentana(actual));
 
-        boolean esFree = usuarioRepository.findById(id)
-                .map(usuario -> usuario.getPlan() == PlanUsuario.FREE)
-                .orElse(true);
-
-        if (!esFree) {
-            return;
-        }
-
-        long count = enlaceRepository.countByUsuarioIdAndTipo(id, TipoEnlace.STANDARD);
-        if (count >= 3) {
-            throw new LimiteExcedidoException("Has alcanzado el límite de 3 enlaces cortos gratuitos. Actualiza a PRO.");
+        if (usoVentana.getCantidad() >= limite) {
+            throw new LimiteExcedidoException(mensajeLimite(tipoUso, usuarioId));
         }
     }
 
-    public void validarCreacionQr(String usuarioId) {
-        if (!StringUtils.hasText(usuarioId)) {
+    private void registrarUso(String tipoUso, String usuarioId, String identificadorCliente) {
+        if (validarPlanPremium(usuarioId)) {
             return;
         }
 
-        long id;
-        try {
-            id = Long.parseLong(usuarioId);
-        } catch (NumberFormatException ex) {
-            return;
-        }
-
-        boolean esFree = usuarioRepository.findById(id)
-                .map(usuario -> usuario.getPlan() == PlanUsuario.FREE)
-                .orElse(true);
-
-        if (!esFree) {
-            return;
-        }
-
-        long count = enlaceRepository.countByUsuarioIdAndTipo(id, TipoEnlace.QR);
-        if (count >= 3) {
-            throw new LimiteExcedidoException("Has alcanzado el límite de 3 códigos QR gratuitos. Actualiza a PRO para crear ilimitados.");
-        }
+        String clave = claveUso(usuarioId, identificadorCliente, tipoUso);
+        usos.compute(clave, (key, actual) -> {
+            UsoVentana ventana = normalizarVentana(actual);
+            ventana.incrementar();
+            return ventana;
+        });
     }
 
-    private int limiteMaximo(PlanUsuario planUsuario) {
-        PlanUsuario plan = planUsuario == null ? PlanUsuario.FREE : planUsuario;
+    private UsoVentana normalizarVentana(UsoVentana actual) {
+        OffsetDateTime ahora = OffsetDateTime.now();
+        if (actual == null || actual.expiraEn.isBefore(ahora)) {
+            return new UsoVentana(1, ahora.plus(VENTANA_USO));
+        }
+        return actual;
+    }
 
-        return switch (plan) {
-            case PREMIUM -> Integer.MAX_VALUE;
-            case FREE -> 10;
+    private String claveUso(String usuarioId, String identificadorCliente, String tipoUso) {
+        String scope = StringUtils.hasText(usuarioId) ? "user:" + usuarioId.trim() : "guest:" + normalizarCliente(identificadorCliente);
+        return scope + ":" + tipoUso;
+    }
+
+    private String normalizarCliente(String identificadorCliente) {
+        return StringUtils.hasText(identificadorCliente) ? identificadorCliente.trim() : "unknown";
+    }
+
+    private int limiteMaximo(String tipoUso, String usuarioId) {
+        if (validarPlanPremium(usuarioId)) {
+            return Integer.MAX_VALUE;
+        }
+
+        boolean esUsuarioRegistrado = StringUtils.hasText(usuarioId);
+        return switch (tipoUso) {
+            case "STANDARD" -> esUsuarioRegistrado ? LIMITE_GRATIS_ENLACES : LIMITE_INVITADO_ENLACES;
+            case "QR" -> esUsuarioRegistrado ? LIMITE_GRATIS_QR : LIMITE_INVITADO_QR;
+            case "SIGNATURE" -> esUsuarioRegistrado ? LIMITE_GRATIS_FIRMAS : 0;
+            case "IMAGE_CONVERSION" -> esUsuarioRegistrado ? LIMITE_GRATIS_CONVERSIONES : LIMITE_INVITADO_CONVERSIONES;
+            default -> throw new IllegalArgumentException("Tipo de uso desconocido: " + tipoUso);
         };
     }
-}
 
+    private String mensajeLimite(String tipoUso, String usuarioId) {
+        return switch (tipoUso) {
+            case "STANDARD" -> StringUtils.hasText(usuarioId)
+                    ? "Has alcanzado el límite de 3 enlaces cortos gratuitos. Actualiza a PRO."
+                    : "Has alcanzado el límite de 1 enlace corto temporal. Vuelve a intentarlo después de 24 horas.";
+            case "QR" -> StringUtils.hasText(usuarioId)
+                    ? "Has alcanzado el límite de 4 códigos QR gratuitos. Actualiza a PRO para crear ilimitados."
+                    : "Has alcanzado el límite de 1 código QR temporal. Vuelve a intentarlo después de 24 horas.";
+            case "SIGNATURE" -> "Los usuarios gratuitos solo pueden tener 1 firma activa";
+            case "IMAGE_CONVERSION" -> StringUtils.hasText(usuarioId)
+                    ? "Has alcanzado el límite de 5 conversiones de imagen gratuitas. Actualiza a PRO."
+                    : "Has alcanzado el límite temporal de conversiones. Vuelve a intentarlo después de 24 horas.";
+            default -> "Has alcanzado el límite permitido";
+        };
+    }
+
+    @Scheduled(fixedDelayString = "${app.quota.cleanup-ms:3600000}")
+    public void limpiarUsosExpirados() {
+        OffsetDateTime ahora = OffsetDateTime.now();
+        usos.entrySet().removeIf(entry -> entry.getValue().expiraEn.isBefore(ahora));
+    }
+
+    private static final class UsoVentana {
+        private int cantidad;
+        private final OffsetDateTime expiraEn;
+
+        private UsoVentana(int cantidad, OffsetDateTime expiraEn) {
+            this.cantidad = cantidad;
+            this.expiraEn = expiraEn;
+        }
+
+        private int getCantidad() {
+            return cantidad;
+        }
+
+        private void incrementar() {
+            this.cantidad++;
+        }
+    }
+}

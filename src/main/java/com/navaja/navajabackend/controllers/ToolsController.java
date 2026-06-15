@@ -7,6 +7,7 @@ import com.navaja.navajabackend.services.OpenGraphService;
 import com.navaja.navajabackend.services.QrCodeService;
 import com.navaja.navajabackend.services.QuotaService;
 import jakarta.validation.Valid;
+import com.navaja.navajabackend.security.UrlSecurityValidator;
 import com.navaja.navajabackend.security.UsuarioPrincipal;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,12 +30,14 @@ public class ToolsController {
     private final OpenGraphService openGraphService;
     private final QuotaService quotaService;
     private final ImageConversionService imageConversionService;
+    private final UrlSecurityValidator urlSecurityValidator;
 
-    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService) {
+    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator) {
         this.qrCodeService = qrCodeService;
         this.openGraphService = openGraphService;
         this.quotaService = quotaService;
         this.imageConversionService = imageConversionService;
+        this.urlSecurityValidator = urlSecurityValidator;
     }
 
     @GetMapping("/qr")
@@ -43,7 +46,7 @@ public class ToolsController {
             @RequestParam(defaultValue = "300") int width,
             @RequestParam(defaultValue = "300") int height
     ) {
-        validateHttpUri(url);
+        urlSecurityValidator.validateSafeUrl(url);
         byte[] image = qrCodeService.generateStandardQr(url, width, height);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
@@ -52,7 +55,7 @@ public class ToolsController {
 
     @GetMapping("/opengraph")
     public ResponseEntity<OpenGraphData> getOpenGraph(@RequestParam String url) {
-        validateHttpUri(url);
+        urlSecurityValidator.validateSafeUrl(url);
         return ResponseEntity.ok(openGraphService.extract(url));
     }
 
@@ -73,26 +76,19 @@ public class ToolsController {
     public ResponseEntity<byte[]> convertImage(
             @AuthenticationPrincipal UsuarioPrincipal principal,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
-            @RequestParam("format") String format
+            @RequestParam("format") String format,
+            @RequestParam(value = "watermark", required = false) org.springframework.web.multipart.MultipartFile watermarkFile
     ) {
         String usuarioId = principal == null ? null : String.valueOf(principal.getId());
         quotaService.validarConversionPremium(usuarioId, format);
-        return imageConversionService.convert(file, format);
+        
+        boolean isPremium = quotaService.validarPlanPremium(usuarioId);
+        
+        return imageConversionService.convert(file, format, isPremium, watermarkFile);
     }
 
     private void validateHttpUri(String value) {
-        try {
-            URI uri = new URI(value);
-            if (!uri.isAbsolute() || uri.getHost() == null) {
-                throw new IllegalArgumentException("La URL debe ser absoluta y valida");
-            }
-            String scheme = uri.getScheme();
-            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-                throw new IllegalArgumentException("La URL debe usar esquema http o https");
-            }
-        } catch (URISyntaxException exception) {
-            throw new IllegalArgumentException("La URL enviada no tiene un formato valido", exception);
-        }
+        urlSecurityValidator.validateSafeUrl(value);
     }
 }
 

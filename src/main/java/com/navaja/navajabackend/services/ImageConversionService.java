@@ -12,17 +12,41 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import net.coobird.thumbnailator.geometry.Positions;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import org.springframework.core.io.ClassPathResource;
+
 @Service
 public class ImageConversionService {
 
-    public ResponseEntity<byte[]> convert(MultipartFile file, String format) {
+    public ResponseEntity<byte[]> convert(MultipartFile file, String format, boolean isPremium, MultipartFile watermarkFile) {
         String normalizedFormat = validarYNormalizarFormato(format);
 
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            Thumbnails.of(file.getInputStream())
-                    .scale(1.0)
-                    .outputFormat(normalizedFormat.toLowerCase())
-                    .toOutputStream(os);
+            var builder = Thumbnails.of(file.getInputStream()).scale(1.0);
+            
+            if (!isPremium) {
+                // Agregar marca de agua por defecto para usuarios gratis
+                try {
+                    InputStream defaultWatermarkStream = new ClassPathResource("watermark.png").getInputStream();
+                    BufferedImage watermarkImage = ImageIO.read(defaultWatermarkStream);
+                    if (watermarkImage != null) {
+                        builder.watermark(Positions.BOTTOM_RIGHT, watermarkImage, 0.5f);
+                    }
+                } catch (Exception e) {
+                    // Ignorar si no existe el archivo watermark.png
+                }
+            } else if (watermarkFile != null && !watermarkFile.isEmpty()) {
+                // Agregar marca de agua personalizada para usuarios premium
+                BufferedImage customWatermark = ImageIO.read(watermarkFile.getInputStream());
+                if (customWatermark != null) {
+                    builder.watermark(Positions.BOTTOM_RIGHT, customWatermark, 0.8f);
+                }
+            }
+
+            builder.outputFormat(normalizedFormat.toLowerCase()).toOutputStream(os);
 
             MediaType mediaType = resolverMediaType(normalizedFormat);
             String nombreArchivo = "converted-image." + normalizedFormat.toLowerCase();
