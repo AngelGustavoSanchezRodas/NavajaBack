@@ -32,9 +32,6 @@ public class ManagementLinksController {
 
     @GetMapping("/list")
     public ResponseEntity<List<EnlaceResponse>> listarEnlaces(@AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         return ResponseEntity.ok(enlaceService.listarEnlacesPorTipo(principal.getId(), TipoEnlace.STANDARD));
     }
 
@@ -43,17 +40,11 @@ public class ManagementLinksController {
             @PathVariable Long id,
             @Valid @RequestBody ActualizarEnlaceRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarEnlace(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         enlaceService.eliminarEnlacePropietario(id, principal.getId());
         return ResponseEntity.noContent().build();
     }

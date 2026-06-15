@@ -63,10 +63,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     }
 
     private Bucket createBucket(String ignoredIp) {
-        Bandwidth limit = Bandwidth.builder()
-                .capacity(MAX_REQUESTS)
-                .refillGreedy(MAX_REQUESTS, REFILL_PERIOD)
-                .build();
+        Bandwidth limit = Bandwidth.classic(MAX_REQUESTS, io.github.bucket4j.Refill.greedy(MAX_REQUESTS, REFILL_PERIOD));
         return Bucket.builder().addLimit(limit).build();
     }
 

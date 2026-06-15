@@ -26,9 +26,6 @@ public class ManagementSignatureController {
 
     @GetMapping("/list")
     public ResponseEntity<List<EnlaceResponse>> listarSignatures(@AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         return ResponseEntity.ok(enlaceService.listarEnlacesPorTipo(principal.getId(), TipoEnlace.SIGNATURE));
     }
 
@@ -37,17 +34,11 @@ public class ManagementSignatureController {
             @PathVariable Long id,
             @Valid @RequestBody ActualizarEnlaceRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarSignature(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         enlaceService.eliminarEnlacePropietario(id, principal.getId());
         return ResponseEntity.noContent().build();
     }

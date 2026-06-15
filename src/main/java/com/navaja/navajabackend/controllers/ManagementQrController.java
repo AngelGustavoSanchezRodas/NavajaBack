@@ -26,9 +26,6 @@ public class ManagementQrController {
 
     @GetMapping("/list")
     public ResponseEntity<List<EnlaceResponse>> listarQrs(@AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         return ResponseEntity.ok(enlaceService.listarEnlacesPorTipo(principal.getId(), TipoEnlace.QR));
     }
 
@@ -37,17 +34,11 @@ public class ManagementQrController {
             @PathVariable Long id,
             @Valid @RequestBody ActualizarEnlaceRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarQr(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
         enlaceService.eliminarEnlacePropietario(id, principal.getId());
         return ResponseEntity.noContent().build();
     }

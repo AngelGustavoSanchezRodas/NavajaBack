@@ -39,7 +39,6 @@ class QuotaServiceTest {
     void verificarLimiteDebePermitirUsuarioPremium() {
         Usuario usuario = new Usuario();
         usuario.setPlan(PlanUsuario.PREMIUM);
-        when(enlaceRepository.countByUsuario(usuario)).thenReturn(0L);
 
         assertDoesNotThrow(() -> quotaService.verificarLimite(usuario, null));
     }
