@@ -1,5 +1,6 @@
 package com.navaja.navajabackend.services;
 
+import com.navaja.navajabackend.models.Suscripcion;
 import com.navaja.navajabackend.exceptions.AccesoDenegadoException;
 import com.navaja.navajabackend.exceptions.LimiteExcedidoException;
 import com.navaja.navajabackend.models.PlanUsuario;

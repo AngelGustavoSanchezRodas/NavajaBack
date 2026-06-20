@@ -1,5 +1,6 @@
 package com.navaja.navajabackend.services;
 
+import com.navaja.navajabackend.models.Suscripcion;
 import com.navaja.navajabackend.exceptions.AccesoDenegadoException;
 import com.navaja.navajabackend.models.PlanUsuario;
 import com.navaja.navajabackend.models.Usuario;
@@ -30,7 +31,9 @@ class QuotaServiceTest {
     @Test
     void verificarLimiteDebeBloquearAliasPersonalizadoEnPlanGratis() {
         Usuario usuario = new Usuario();
-        usuario.setPlan(PlanUsuario.FREE);
+        Suscripcion suscripcion = new Suscripcion();
+suscripcion.setPlan(PlanUsuario.FREE);
+usuario.setSuscripcion(suscripcion);
 
         assertThrows(AccesoDenegadoException.class, () -> quotaService.verificarLimite(usuario, "mi-alias"));
     }
@@ -38,7 +41,9 @@ class QuotaServiceTest {
     @Test
     void verificarLimiteDebePermitirUsuarioPremium() {
         Usuario usuario = new Usuario();
-        usuario.setPlan(PlanUsuario.PREMIUM);
+        Suscripcion suscripcion = new Suscripcion();
+suscripcion.setPlan(PlanUsuario.PREMIUM);
+usuario.setSuscripcion(suscripcion);
 
         assertDoesNotThrow(() -> quotaService.verificarLimite(usuario, null));
     }
