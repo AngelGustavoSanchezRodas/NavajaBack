@@ -1,5 +1,6 @@
 package com.navaja.navajabackend.services;
 
+import com.navaja.navajabackend.dto.PagoPendienteDto; // <-- IMPORT VITAL FALTANTE
 import com.navaja.navajabackend.models.EstadoPago;
 import com.navaja.navajabackend.models.PlanUsuario;
 import com.navaja.navajabackend.models.Usuario;
@@ -29,28 +30,36 @@ public class PaymentService {
         if (usuario == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
         }
-        
+
         usuario.setComprobanteUrl(comprobanteUrl);
         usuario.setEstadoPago(EstadoPago.PENDING);
         usuarioRepository.save(usuario);
     }
 
-   public List<PagoPendiente> getPagosPendientes() {
-    return usuarioRepository.findByEstadoPago(EstadoPago.PENDING)
-            .stream()
-            .map(u -> new PagoPendiente(u.getId(), u.getEmail(), u.getComprobanteUrl(), u.getPremiumHasta()))
-            .toList();
-}
+    // <-- AQUÍ ESTABA EL ERROR: USAR PagoPendienteDto EN VEZ DE PagoPendiente
+    public List<PagoPendienteDto> getPagosPendientes() {
+        return usuarioRepository.findByEstadoPago(EstadoPago.PENDING)
+                .stream()
+                .map(u -> new PagoPendienteDto(u.getId(), u.getEmail(), u.getComprobanteUrl(), u.getPremiumHasta()))
+                .toList();
+    }
 
     @Transactional
     public void aprobarPago(Long usuarioId) {
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
-                
+
         usuario.setPlan(PlanUsuario.PREMIUM);
-        usuario.setPremiumHasta(ZonedDateTime.now().plusDays(30));
+
+        ZonedDateTime nuevaFecha;
+        if (usuario.getPremiumHasta() != null && usuario.getPremiumHasta().isAfter(ZonedDateTime.now())) {
+            nuevaFecha = usuario.getPremiumHasta().plusDays(30);
+        } else {
+            nuevaFecha = ZonedDateTime.now().plusDays(30);
+        }
+        usuario.setPremiumHasta(nuevaFecha);
         usuario.setEstadoPago(EstadoPago.APPROVED);
-        
+
         usuarioRepository.save(usuario);
     }
 }

@@ -1,8 +1,7 @@
 package com.navaja.navajabackend.controllers;
 
-import com.navaja.navajabackend.dto.PagoPendiente;
+import com.navaja.navajabackend.dto.PagoPendienteDto;
 import com.navaja.navajabackend.dto.PaymentUploadRequest;
-import com.navaja.navajabackend.models.Usuario;
 import com.navaja.navajabackend.services.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +27,7 @@ public class PaymentController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/v1/admin/payments/pending")
-    public ResponseEntity<List<PagoPendiente>> getPendingPayments() {
+    public ResponseEntity<List<PagoPendienteDto>> getPendingPayments() {
         return ResponseEntity.ok(paymentService.getPagosPendientes());
     }
 
