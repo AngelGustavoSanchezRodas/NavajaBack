@@ -40,11 +40,10 @@ public class QuotaService {
             return;
         }
 
-        if (usuario.getPlan() == null) {
-            usuario.setPlan(PlanUsuario.FREE);
-        }
+        PlanUsuario plan = (usuario.getSuscripcion() != null && usuario.getSuscripcion().getPlan() != null) 
+                           ? usuario.getSuscripcion().getPlan() : PlanUsuario.FREE;
 
-        if (usuario.getPlan() == PlanUsuario.FREE && StringUtils.hasText(aliasPersonalizado)) {
+        if (plan == PlanUsuario.FREE && StringUtils.hasText(aliasPersonalizado)) {
             throw new AccesoDenegadoException();
         }
     }
@@ -62,7 +61,7 @@ public class QuotaService {
         }
 
         return usuarioRepository.findById(id)
-                .map(usuario -> usuario.getPlan() == PlanUsuario.PREMIUM)
+                .map(usuario -> usuario.getSuscripcion() != null && usuario.getSuscripcion().getPlan() == PlanUsuario.PREMIUM)
                 .orElse(false);
     }
 

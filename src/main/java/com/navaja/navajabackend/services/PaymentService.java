@@ -1,9 +1,13 @@
 package com.navaja.navajabackend.services;
 
-import com.navaja.navajabackend.dto.PagoPendienteDto; // <-- IMPORT VITAL FALTANTE
+import com.navaja.navajabackend.dto.PagoPendienteDto;
 import com.navaja.navajabackend.models.EstadoPago;
+import com.navaja.navajabackend.models.PagoManual;
 import com.navaja.navajabackend.models.PlanUsuario;
+import com.navaja.navajabackend.models.Suscripcion;
 import com.navaja.navajabackend.models.Usuario;
+import com.navaja.navajabackend.repositories.PagoManualRepository;
+import com.navaja.navajabackend.repositories.SuscripcionRepository;
 import com.navaja.navajabackend.repositories.UsuarioRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,10 +20,14 @@ import java.util.List;
 @Service
 public class PaymentService {
 
+    private final PagoManualRepository pagoManualRepository;
+    private final SuscripcionRepository suscripcionRepository;
     private final UsuarioRepository usuarioRepository;
     private final AuthenticatedUserResolver userResolver;
 
-    public PaymentService(UsuarioRepository usuarioRepository, AuthenticatedUserResolver userResolver) {
+    public PaymentService(PagoManualRepository pagoManualRepository, SuscripcionRepository suscripcionRepository, UsuarioRepository usuarioRepository, AuthenticatedUserResolver userResolver) {
+        this.pagoManualRepository = pagoManualRepository;
+        this.suscripcionRepository = suscripcionRepository;
         this.usuarioRepository = usuarioRepository;
         this.userResolver = userResolver;
     }
@@ -31,35 +39,57 @@ public class PaymentService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
         }
 
-        usuario.setComprobanteUrl(comprobanteUrl);
-        usuario.setEstadoPago(EstadoPago.PENDING);
-        usuarioRepository.save(usuario);
+        PagoManual pagoManual = new PagoManual(usuario, comprobanteUrl, EstadoPago.PENDING);
+        pagoManualRepository.save(pagoManual);
     }
 
-    // <-- AQUÍ ESTABA EL ERROR: USAR PagoPendienteDto EN VEZ DE PagoPendiente
     public List<PagoPendienteDto> getPagosPendientes() {
-        return usuarioRepository.findByEstadoPago(EstadoPago.PENDING)
+        return pagoManualRepository.findByEstado(EstadoPago.PENDING)
                 .stream()
-                .map(u -> new PagoPendienteDto(u.getId(), u.getEmail(), u.getComprobanteUrl(), u.getPremiumHasta()))
+                .map(pm -> {
+                    Usuario u = pm.getUsuario();
+                    ZonedDateTime premiumHasta = (u.getSuscripcion() != null) ? u.getSuscripcion().getPremiumHasta() : null;
+                    return new PagoPendienteDto(u.getId(), u.getEmail(), pm.getComprobanteUrl(), premiumHasta);
+                })
                 .toList();
     }
 
     @Transactional
     public void aprobarPago(Long usuarioId) {
+        Usuario admin = userResolver.resolveOrNull();
+        if (admin == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin no autenticado");
+        }
+
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
-        usuario.setPlan(PlanUsuario.PREMIUM);
+        List<PagoManual> pagosPendientes = pagoManualRepository.findByEstado(EstadoPago.PENDING).stream()
+                .filter(p -> p.getUsuario().getId().equals(usuarioId))
+                .toList();
 
-        ZonedDateTime nuevaFecha;
-        if (usuario.getPremiumHasta() != null && usuario.getPremiumHasta().isAfter(ZonedDateTime.now())) {
-            nuevaFecha = usuario.getPremiumHasta().plusDays(30);
-        } else {
-            nuevaFecha = ZonedDateTime.now().plusDays(30);
+        if (pagosPendientes.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay pagos pendientes para este usuario");
         }
-        usuario.setPremiumHasta(nuevaFecha);
-        usuario.setEstadoPago(EstadoPago.APPROVED);
 
-        usuarioRepository.save(usuario);
+        PagoManual pagoManual = pagosPendientes.get(0);
+        pagoManual.setEstado(EstadoPago.APPROVED);
+        pagoManual.setFechaResolucion(ZonedDateTime.now());
+        pagoManual.setRevisadoPor(admin);
+        pagoManualRepository.save(pagoManual);
+
+        Suscripcion suscripcion = usuario.getSuscripcion();
+        if (suscripcion == null) {
+            suscripcion = new Suscripcion(usuario, PlanUsuario.PREMIUM);
+            suscripcion.setPremiumHasta(ZonedDateTime.now().plusDays(30));
+        } else {
+            suscripcion.setPlan(PlanUsuario.PREMIUM);
+            if (suscripcion.getPremiumHasta() != null && suscripcion.getPremiumHasta().isAfter(ZonedDateTime.now())) {
+                suscripcion.setPremiumHasta(suscripcion.getPremiumHasta().plusDays(30));
+            } else {
+                suscripcion.setPremiumHasta(ZonedDateTime.now().plusDays(30));
+            }
+        }
+        suscripcionRepository.save(suscripcion);
     }
 }

@@ -1,20 +1,19 @@
 package com.navaja.navajabackend.models;
 
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "usuarios")
@@ -30,25 +29,14 @@ public class Usuario {
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "plan", nullable = false, length = 20)
-    private PlanUsuario plan;
-
     @Column(name = "fecha_registro", nullable = false)
     private OffsetDateTime fechaRegistro;
 
     @OneToMany(mappedBy = "usuario")
     private List<Enlace> enlaces = new ArrayList<>();
 
-    @Column(name = "premium_hasta")
-    private ZonedDateTime premiumHasta;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "estado_pago", length = 20)
-    private EstadoPago estadoPago;
-
-    @Column(name = "comprobante_url", length = 500)
-    private String comprobanteUrl;
+    @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL)
+    private Suscripcion suscripcion;
 
     @Column(name = "rol", nullable = false, length = 50)
     private String rol;
@@ -80,14 +68,6 @@ public class Usuario {
         this.contrasena = contrasena;
     }
 
-    public PlanUsuario getPlan() {
-        return plan;
-    }
-
-    public void setPlan(PlanUsuario plan) {
-        this.plan = plan;
-    }
-
     public OffsetDateTime getFechaRegistro() {
         return fechaRegistro;
     }
@@ -104,28 +84,12 @@ public class Usuario {
         this.enlaces = enlaces;
     }
 
-    public ZonedDateTime getPremiumHasta() {
-        return premiumHasta;
+    public Suscripcion getSuscripcion() {
+        return suscripcion;
     }
 
-    public void setPremiumHasta(ZonedDateTime premiumHasta) {
-        this.premiumHasta = premiumHasta;
-    }
-
-    public EstadoPago getEstadoPago() {
-        return estadoPago;
-    }
-
-    public void setEstadoPago(EstadoPago estadoPago) {
-        this.estadoPago = estadoPago;
-    }
-
-    public String getComprobanteUrl() {
-        return comprobanteUrl;
-    }
-
-    public void setComprobanteUrl(String comprobanteUrl) {
-        this.comprobanteUrl = comprobanteUrl;
+    public void setSuscripcion(Suscripcion suscripcion) {
+        this.suscripcion = suscripcion;
     }
 
     public String getRol() {
@@ -140,12 +104,6 @@ public class Usuario {
     void prePersist() {
         if (fechaRegistro == null) {
             fechaRegistro = OffsetDateTime.now();
-        }
-        if (plan == null) {
-            plan = PlanUsuario.FREE;
-        }
-        if (estadoPago == null) {
-            estadoPago = EstadoPago.NONE;
         }
         if (rol == null) {
             rol = "USER";

@@ -3,6 +3,7 @@ package com.navaja.navajabackend.services;
 import com.navaja.navajabackend.dto.LoginResponse;
 import com.navaja.navajabackend.dto.RegistroRequest;
 import com.navaja.navajabackend.models.PlanUsuario;
+import com.navaja.navajabackend.models.Suscripcion;
 import com.navaja.navajabackend.models.Usuario;
 import com.navaja.navajabackend.repositories.UsuarioRepository;
 import com.navaja.navajabackend.security.ServicioJwt;
@@ -34,7 +35,10 @@ public class AuthService {
         Usuario usuario = new Usuario();
         usuario.setEmail(request.email());
         usuario.setContrasena(passwordEncoder.encode(request.contrasena()));
-        usuario.setPlan(PlanUsuario.FREE);
+
+        Suscripcion suscripcion = new Suscripcion(usuario, PlanUsuario.FREE);
+        usuario.setSuscripcion(suscripcion);
+
         usuarioRepository.save(usuario);
     }
 
