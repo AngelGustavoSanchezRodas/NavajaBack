@@ -17,7 +17,11 @@ public class SubscriptionCronService {
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void ejecutarDegradacion() {
-        int actualizados = usuarioRepository.degradarCuentasExpiradas(ZonedDateTime.now());
-        System.out.println("CronJob de degradación ejecutado. Cuentas degradadas: " + actualizados);
-    }
+        int actualizados = usuarioRepository.degradarCuentasExpiradas(
+            ZonedDateTime.now(), 
+            com.navaja.navajabackend.models.PlanUsuario.FREE, 
+            com.navaja.navajabackend.models.EstadoPago.NONE
+    );
+    System.out.println("CronJob de degradación ejecutado. Cuentas degradadas: " + actualizados);
+}
 }

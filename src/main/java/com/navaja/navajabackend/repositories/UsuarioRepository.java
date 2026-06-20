@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
+import org.springframework.data.repository.query.Param;
 import com.navaja.navajabackend.models.EstadoPago;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,8 +20,11 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     @Modifying
     @Transactional
-    @Query("UPDATE Usuario u SET u.plan = 'FREE', u.estadoPago = 'NONE', u.premiumHasta = null WHERE u.premiumHasta < :ahora")
-    int degradarCuentasExpiradas(java.time.ZonedDateTime ahora);
+    @Query("UPDATE Usuario u SET u.plan = :plan, u.estadoPago = :estado, u.premiumHasta = null WHERE u.premiumHasta < :ahora")
+    int degradarCuentasExpiradas(@Param("ahora") java.time.ZonedDateTime ahora, 
+                             @Param("plan") com.navaja.navajabackend.models.PlanUsuario plan, 
+                             @Param("estado") com.navaja.navajabackend.models.EstadoPago estado);
+                             
 }
 
 

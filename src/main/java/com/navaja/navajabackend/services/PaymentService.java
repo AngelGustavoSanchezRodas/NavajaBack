@@ -35,9 +35,12 @@ public class PaymentService {
         usuarioRepository.save(usuario);
     }
 
-    public List<Usuario> getPagosPendientes() {
-        return usuarioRepository.findByEstadoPago(EstadoPago.PENDING);
-    }
+   public List<PagoPendiente> getPagosPendientes() {
+    return usuarioRepository.findByEstadoPago(EstadoPago.PENDING)
+            .stream()
+            .map(u -> new PagoPendiente(u.getId(), u.getEmail(), u.getComprobanteUrl(), u.getPremiumHasta()))
+            .toList();
+}
 
     @Transactional
     public void aprobarPago(Long usuarioId) {
