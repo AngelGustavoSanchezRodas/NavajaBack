@@ -59,13 +59,20 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:[*]", "https://*.vercel.app", frontendUrl));
+
+        // 1. Corrección arquitectónica: Patrón de localhost válido con asterisco
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", frontendUrl));
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("*"));
+
+        // 2. Seguridad: Es mejor ser explícito con los headers permitidos en lugar de usar "*" en producción
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
+
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        configuration.setMaxAge(3600L); // Cachear pre-flight requests por 1 hora
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // 3. Aplicar globalmente a toda la API
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
