@@ -12,6 +12,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +39,19 @@ public class Usuario {
 
     @OneToMany(mappedBy = "usuario")
     private List<Enlace> enlaces = new ArrayList<>();
+
+    @Column(name = "premium_hasta")
+    private ZonedDateTime premiumHasta;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado_pago", length = 20)
+    private EstadoPago estadoPago;
+
+    @Column(name = "comprobante_url", length = 500)
+    private String comprobanteUrl;
+
+    @Column(name = "rol", nullable = false, length = 50)
+    private String rol;
 
     public Usuario() {
     }
@@ -90,6 +104,38 @@ public class Usuario {
         this.enlaces = enlaces;
     }
 
+    public ZonedDateTime getPremiumHasta() {
+        return premiumHasta;
+    }
+
+    public void setPremiumHasta(ZonedDateTime premiumHasta) {
+        this.premiumHasta = premiumHasta;
+    }
+
+    public EstadoPago getEstadoPago() {
+        return estadoPago;
+    }
+
+    public void setEstadoPago(EstadoPago estadoPago) {
+        this.estadoPago = estadoPago;
+    }
+
+    public String getComprobanteUrl() {
+        return comprobanteUrl;
+    }
+
+    public void setComprobanteUrl(String comprobanteUrl) {
+        this.comprobanteUrl = comprobanteUrl;
+    }
+
+    public String getRol() {
+        return rol;
+    }
+
+    public void setRol(String rol) {
+        this.rol = rol;
+    }
+
     @PrePersist
     void prePersist() {
         if (fechaRegistro == null) {
@@ -97,6 +143,12 @@ public class Usuario {
         }
         if (plan == null) {
             plan = PlanUsuario.FREE;
+        }
+        if (estadoPago == null) {
+            estadoPago = EstadoPago.NONE;
+        }
+        if (rol == null) {
+            rol = "USER";
         }
     }
 }

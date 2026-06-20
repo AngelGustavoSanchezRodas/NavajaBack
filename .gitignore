@@ -31,3 +31,7 @@ buildNumber.properties
 # === CREDENCIALES ===
 application-local.yaml
 application-secret.yaml
+
+RENDER_CHECKLIST.md
+RESUMEN_TRABAJO.md
+
