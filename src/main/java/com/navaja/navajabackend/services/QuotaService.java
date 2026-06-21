@@ -36,16 +36,23 @@ public class QuotaService {
         this.usuarioRepository = usuarioRepository;
     }
 
+    // ... (resto de tus importaciones y constantes) ...
+
     public void verificarLimite(Usuario usuario, String aliasPersonalizado) {
         if (usuario == null) {
             return;
         }
 
-        PlanUsuario plan = (usuario.getSuscripcion() != null && usuario.getSuscripcion().getPlan() != null) 
+        // 1. Bypass absoluto para administradores (Beneficio permanente)
+        if ("ADMIN".equalsIgnoreCase(usuario.getRol())) {
+            return;
+        }
+
+        PlanUsuario plan = (usuario.getSuscripcion() != null && usuario.getSuscripcion().getPlan() != null)
                            ? usuario.getSuscripcion().getPlan() : PlanUsuario.FREE;
 
         if (plan == PlanUsuario.FREE && StringUtils.hasText(aliasPersonalizado)) {
-            throw new AccesoDenegadoException();
+            throw new AccesoDenegadoException("Los alias personalizados son una función PRO.");
         }
     }
 
@@ -62,7 +69,14 @@ public class QuotaService {
         }
 
         return usuarioRepository.findById(id)
-                .map(usuario -> usuario.getSuscripcion() != null && usuario.getSuscripcion().getPlan() == PlanUsuario.PREMIUM)
+                .map(usuario -> {
+                    // 2. Si el rol es ADMIN, el sistema lo trata como un usuario PREMIUM perpetuo
+                    if ("ADMIN".equalsIgnoreCase(usuario.getRol())) {
+                        return true;
+                    }
+                    // Si no es admin, evaluamos su suscripción real
+                    return usuario.getSuscripcion() != null && usuario.getSuscripcion().getPlan() == PlanUsuario.PREMIUM;
+                })
                 .orElse(false);
     }
 
@@ -225,4 +239,6 @@ public class QuotaService {
             this.cantidad++;
         }
     }
+
+
 }
