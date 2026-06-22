@@ -1,5 +1,20 @@
 package com.navaja.navajabackend.services;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.navaja.navajabackend.dto.ActualizarEnlaceRequest;
 import com.navaja.navajabackend.dto.CrearEnlaceRequest;
 import com.navaja.navajabackend.dto.EnlaceResponse;
 import com.navaja.navajabackend.exceptions.AliasEnUsoException;
@@ -7,22 +22,8 @@ import com.navaja.navajabackend.exceptions.EnlaceNoEncontradoException;
 import com.navaja.navajabackend.models.Enlace;
 import com.navaja.navajabackend.models.TipoEnlace;
 import com.navaja.navajabackend.models.Usuario;
-import com.navaja.navajabackend.repositories.EnlaceRepository;
 import com.navaja.navajabackend.repositories.ClicRepository;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.CacheManager;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import com.navaja.navajabackend.dto.ActualizarEnlaceRequest;
-import java.util.Map;
+import com.navaja.navajabackend.repositories.EnlaceRepository;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
 
 @Service
@@ -62,7 +63,10 @@ public class EnlaceService {
     @Transactional
     public EnlaceResponse crearEnlace(CrearEnlaceRequest request) {
         Usuario usuario = authenticatedUserResolver.resolveOrNull();
-        String aliasPersonalizado = request.alias();
+        
+        // 1. Lectura Defensiva: Extraemos el alias sin importar qué campo use el frontend
+        String aliasPersonalizado = StringUtils.hasText(request.alias()) ? request.alias() : request.codigoCorto();
+        
         String tipoHerramienta = normalizarTipoHerramienta(request.tipoHerramienta());
         TipoEnlace tipoEnlace = request.tipo() != null ? request.tipo() : TipoEnlace.STANDARD;
 
@@ -72,6 +76,7 @@ public class EnlaceService {
 
         OffsetDateTime fechaExpiracion = null;
         if (usuario != null) {
+            // Usamos el alias extraído de forma segura
             quotaService.verificarLimite(usuario, aliasPersonalizado);
         } else {
             fechaExpiracion = OffsetDateTime.now().plusHours(24);
@@ -84,19 +89,18 @@ public class EnlaceService {
             quotaService.validarCreacionFirma(usuarioIdStr, templateId);
         } else if (tipoEnlace == TipoEnlace.STANDARD) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionAcortador(usuarioIdStr, request.alias());
+            quotaService.validarCreacionAcortador(usuarioIdStr, aliasPersonalizado);
         } else if (tipoEnlace == TipoEnlace.QR) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionQr(usuarioIdStr, request.alias());
+            quotaService.validarCreacionQr(usuarioIdStr, aliasPersonalizado);
         }
 
+        // 2. Sanitización y resolución del código corto final
         String codigoCorto = resolverCodigoCorto(request);
 
         Enlace enlace = new Enlace();
         enlace.setCodigoCorto(codigoCorto);
-
         enlace.setUrlOriginal(request.urlOriginal());
-
         enlace.setEsDinamico(Boolean.TRUE.equals(request.esDinamico()));
         enlace.setUsuario(usuario);
         enlace.setTipoHerramienta(tipoHerramienta);
@@ -117,6 +121,31 @@ public class EnlaceService {
         return enlaceMapper.toResponse(saved);
     }
 
+    // --- REEMPLAZA TAMBIÉN ESTE MÉTODO MÁS ABAJO EN EL MISMO ARCHIVO ---
+
+    private String resolverCodigoCorto(CrearEnlaceRequest request) {
+        // Unificamos la validación para tolerar ambigüedad en el DTO del frontend
+        String customAlias = StringUtils.hasText(request.alias()) ? request.alias() : request.codigoCorto();
+
+        if (!StringUtils.hasText(customAlias)) {
+            return generateUniqueShortcode();
+        }
+
+        // Limpieza de espacios accidentales
+        customAlias = customAlias.trim();
+
+        // 3. Regla Arquitectónica: Sanitización estricta (URL-Safe)
+        // Evita que el usuario ingrese @, espacios, ñ, acentos o símbolos que rompan la URL
+        if (!customAlias.matches("^[a-zA-Z0-9_-]+$")) {
+            throw new IllegalArgumentException("El alias personalizado solo puede contener letras, números, guiones y guiones bajos (Sin espacios ni símbolos como @).");
+        }
+
+        if (enlaceRepository.existsByCodigoCorto(customAlias)) {
+            throw new AliasEnUsoException("El alias '" + customAlias + "' ya está en uso. Por favor elige otro.");
+        }
+
+        return customAlias;
+    }
     @Transactional
     @CachePut(value = "enlaces", key = "#result.codigoCorto", unless = "#result == null")
     public Enlace guardarEnlace(Enlace enlace) {
@@ -241,16 +270,4 @@ public class EnlaceService {
         return StringUtils.hasText(tipoHerramienta) ? tipoHerramienta.trim().toUpperCase() : "QR";
     }
 
-    private String resolverCodigoCorto(CrearEnlaceRequest request) {
-        if (!StringUtils.hasText(request.alias())) {
-            return generateUniqueShortcode();
-        }
-
-        String alias = request.alias().trim();
-        if (enlaceRepository.existsByCodigoCorto(alias)) {
-            throw new AliasEnUsoException("El alias ya esta en uso");
-        }
-
-        return alias;
-    }
 }
