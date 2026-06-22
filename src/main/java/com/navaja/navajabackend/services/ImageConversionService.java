@@ -28,87 +28,53 @@ public class ImageConversionService {
         String normalizedFormat = validarYNormalizarFormato(format);
 
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            // 1. Usamos Thumbnailator solo para el procesamiento (no para la salida)
             var builder = Thumbnails.of(file.getInputStream()).scale(1.0);
             
+            // Lógica de marcas de agua
             if (!isPremium) {
                 try {
                     InputStream defaultWatermarkStream = new ClassPathResource("watermark.png").getInputStream();
                     BufferedImage watermarkImage = ImageIO.read(defaultWatermarkStream);
-                    if (watermarkImage != null) {
-                        builder.watermark(Positions.BOTTOM_RIGHT, watermarkImage, 0.5f);
-                    }
-                } catch (Exception e) {
-                    // Ignorar si no existe el archivo watermark.png
-                }
+                    if (watermarkImage != null) builder.watermark(Positions.BOTTOM_RIGHT, watermarkImage, 0.5f);
+                } catch (Exception ignored) {}
             } else if (watermarkFile != null && !watermarkFile.isEmpty()) {
                 BufferedImage customWatermark = ImageIO.read(watermarkFile.getInputStream());
-                if (customWatermark != null) {
-                    builder.watermark(Positions.BOTTOM_RIGHT, customWatermark, 0.8f);
-                }
+                if (customWatermark != null) builder.watermark(Positions.BOTTOM_RIGHT, customWatermark, 0.8f);
             }
 
-            // 2. Extraemos la imagen procesada a memoria
             BufferedImage imagenProcesada = builder.asBufferedImage();
 
-            // 3. REGLA ARQUITECTÓNICA: Prevención de corrupción de color (Pink Background Bug)
-            // Si la imagen original tenía transparencia (PNG) y la pasamos a JPG/BMP, los colores colapsan.
+            // Prevención de corrupción de colores al pasar de PNG a JPG/BMP
             if (("jpg".equals(normalizedFormat) || "jpeg".equals(normalizedFormat) || "bmp".equals(normalizedFormat)) 
                     && imagenProcesada.getColorModel().hasAlpha()) {
-                
-                BufferedImage imagenSinTransparencia = new BufferedImage(
-                        imagenProcesada.getWidth(), 
-                        imagenProcesada.getHeight(), 
-                        BufferedImage.TYPE_INT_RGB
-                );
-                
+                BufferedImage imagenSinTransparencia = new BufferedImage(imagenProcesada.getWidth(), imagenProcesada.getHeight(), BufferedImage.TYPE_INT_RGB);
                 Graphics2D g2d = imagenSinTransparencia.createGraphics();
-                g2d.setColor(Color.WHITE); // Rellenar transparencia con blanco
+                g2d.setColor(Color.WHITE);
                 g2d.fillRect(0, 0, imagenSinTransparencia.getWidth(), imagenSinTransparencia.getHeight());
                 g2d.drawImage(imagenProcesada, 0, 0, null);
                 g2d.dispose();
-                
                 imagenProcesada = imagenSinTransparencia;
             }
 
-            // 4. Bypass de Thumbnailator: Forzamos la escritura nativa de Java ImageIO 
-            // Esto garantiza que los plugins de TwelveMonkeys (WEBP/TIFF) se ejecuten correctamente.
-            boolean formatoSoportado = ImageIO.write(imagenProcesada, normalizedFormat.toLowerCase(), os);
-            
-            if (!formatoSoportado) {
-                throw new IllegalArgumentException("El servidor no tiene un codificador configurado para: " + normalizedFormat);
-            }
-
-            MediaType mediaType = resolverMediaType(normalizedFormat);
-            String nombreArchivo = "converted-image." + normalizedFormat.toLowerCase();
+            // Escritura nativa que soporta WEBP, TIFF, etc.
+            ImageIO.write(imagenProcesada, normalizedFormat.toLowerCase(), os);
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(mediaType);
-            headers.setContentDisposition(ContentDisposition.attachment().filename(nombreArchivo).build());
+            headers.setContentType(resolverMediaType(normalizedFormat));
+            headers.setContentDisposition(ContentDisposition.attachment().filename("converted-image." + normalizedFormat.toLowerCase()).build());
             return new ResponseEntity<>(os.toByteArray(), headers, HttpStatus.OK);
-            
-        } catch (IOException exception) {
-            throw new IllegalArgumentException("No fue posible procesar y convertir la imagen", exception);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("No fue posible convertir la imagen", e);
         }
     }
 
     private String validarYNormalizarFormato(String formato) {
-        if (formato == null || formato.isBlank()) {
-            throw new IllegalArgumentException("El formato no puede estar vacío");
+        if (formato == null || formato.isBlank()) throw new IllegalArgumentException("El formato no puede estar vacío");
+        String f = formato.toUpperCase();
+        if ("SVG".equals(f)) throw new IllegalArgumentException("El formato SVG no está soportado");
+        if ("JPG".equals(f) || "JPEG".equals(f) || "PNG".equals(f) || "WEBP".equals(f) || "TIFF".equals(f) || "TIF".equals(f) || "BMP".equals(f) || "GIF".equals(f)) {
+            return "JPEG".equals(f) ? "jpg" : ("TIF".equals(f) ? "tiff" : f.toLowerCase());
         }
-
-        String formatoUpper = formato.toUpperCase();
-
-        if ("SVG".equals(formatoUpper)) {
-            throw new IllegalArgumentException("El formato SVG no está soportado");
-        }
-
-        if ("JPG".equals(formatoUpper) || "JPEG".equals(formatoUpper) || "PNG".equals(formatoUpper) ||
-            "WEBP".equals(formatoUpper) || "TIFF".equals(formatoUpper) || "TIF".equals(formatoUpper) ||
-            "BMP".equals(formatoUpper) || "GIF".equals(formatoUpper)) {
-            return "JPG".equals(formatoUpper) ? "jpg" : ("JPEG".equals(formatoUpper) ? "jpg" : ("TIF".equals(formatoUpper) ? "tiff" : formatoUpper.toLowerCase()));
-        }
-
         throw new IllegalArgumentException("El formato " + formato + " no está soportado");
     }
 
