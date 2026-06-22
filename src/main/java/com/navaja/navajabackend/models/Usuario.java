@@ -26,6 +26,9 @@ public class Usuario {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
+    @Column(name = "nombre", length = 255)
+    private String nombre;
+
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
@@ -58,6 +61,14 @@ public class Usuario {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
     }
 
     public String getContrasena() {

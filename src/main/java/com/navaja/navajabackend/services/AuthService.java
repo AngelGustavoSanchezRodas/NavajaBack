@@ -33,6 +33,7 @@ public class AuthService {
         }
 
         Usuario usuario = new Usuario();
+        usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
         usuario.setContrasena(passwordEncoder.encode(request.contrasena()));
 
@@ -51,6 +52,30 @@ public class AuthService {
         }
 
         String token = servicioJwt.generarToken(usuario.getEmail(), Map.of("uid", usuario.getId()));
-        return new LoginResponse(token);
+        
+        com.navaja.navajabackend.dto.UserProfileDto userProfileDto = new com.navaja.navajabackend.dto.UserProfileDto(
+                usuario.getId(),
+                usuario.getNombre(),
+                usuario.getEmail(),
+                usuario.getRol(),
+                usuario.getSuscripcion() != null ? usuario.getSuscripcion().getPlan().name() : "FREE",
+                usuario.getSuscripcion() != null ? usuario.getSuscripcion().getPremiumHasta() : null
+        );
+
+        return new LoginResponse(token, userProfileDto);
+    }
+
+    public com.navaja.navajabackend.dto.UserProfileDto obtenerPerfilUsuario(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                
+        return new com.navaja.navajabackend.dto.UserProfileDto(
+                usuario.getId(),
+                usuario.getNombre(),
+                usuario.getEmail(),
+                usuario.getRol(),
+                usuario.getSuscripcion() != null ? usuario.getSuscripcion().getPlan().name() : "FREE",
+                usuario.getSuscripcion() != null ? usuario.getSuscripcion().getPremiumHasta() : null
+        );
     }
 }

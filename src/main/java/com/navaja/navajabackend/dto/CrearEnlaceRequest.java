@@ -1,12 +1,13 @@
 package com.navaja.navajabackend.dto;
 
-import com.navaja.navajabackend.models.TipoEnlace;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-
 import java.util.Map;
 
+import com.navaja.navajabackend.models.TipoEnlace;
+
+import jakarta.validation.constraints.Size;
+
 public record CrearEnlaceRequest(
+        String nombre,
         @Size(max = 50) String codigoCorto,
         @Size(max = 2048) String urlOriginal,
         Boolean esDinamico,
