@@ -33,7 +33,11 @@ public class ImageConversionService {
             imagenProcesada = corregirTransparencia(imagenProcesada, normalizedFormat);
 
             ImageIO.scanForPlugins();
-            ImageIO.write(imagenProcesada, normalizedFormat.toLowerCase(), os);
+            boolean formatoSoportado = ImageIO.write(imagenProcesada, normalizedFormat.toLowerCase(), os);
+
+            if (!formatoSoportado) {
+                throw new IllegalArgumentException("El motor de conversión no tiene instalado el codificador para exportar a: " + normalizedFormat);
+            }
 
             return new ConversionResult(os.toByteArray(), normalizedFormat.toLowerCase());
         } catch (IOException e) {
@@ -41,7 +45,8 @@ public class ImageConversionService {
         }
     }
 
-    private void aplicarMarcaDeAgua(Thumbnails.Builder<? extends InputStream> builder, boolean isPremium, MultipartFile watermarkFile) throws IOException {
+    private void aplicarMarcaDeAgua(Thumbnails.Builder<? extends InputStream> builder,
+                                    boolean isPremium, MultipartFile watermarkFile) throws IOException {
         if (!isPremium) {
             try {
                 InputStream defaultWatermarkStream = new ClassPathResource("watermark.png").getInputStream();
