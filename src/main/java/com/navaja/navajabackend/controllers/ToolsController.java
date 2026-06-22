@@ -86,13 +86,7 @@ public class ToolsController {
         
         boolean isPremium = quotaService.validarPlanPremium(usuarioId);
         
-        ImageConversionService.ConversionResult result = imageConversionService.convert(file, format, isPremium, watermarkFile);
-        
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(resolverMediaType(result.extension()));
-        headers.setContentDisposition(ContentDisposition.attachment().filename("converted-image." + result.extension()).build());
-        
-        return new ResponseEntity<>(result.data(), headers, HttpStatus.OK);
+        return imageConversionService.convert(file, format, isPremium, watermarkFile);
     }
 
     private MediaType resolverMediaType(String formato) {
