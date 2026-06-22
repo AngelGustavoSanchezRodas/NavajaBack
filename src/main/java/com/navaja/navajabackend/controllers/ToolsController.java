@@ -1,26 +1,28 @@
 package com.navaja.navajabackend.controllers;
 
-import com.navaja.navajabackend.dto.OpenGraphData;
-import com.navaja.navajabackend.dto.QrGenerateRequest;
-import com.navaja.navajabackend.services.ImageConversionService;
-import com.navaja.navajabackend.services.OpenGraphService;
-import com.navaja.navajabackend.services.QrCodeService;
-import com.navaja.navajabackend.services.QuotaService;
-import jakarta.validation.Valid;
-import com.navaja.navajabackend.security.UrlSecurityValidator;
-import com.navaja.navajabackend.security.UsuarioPrincipal;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import java.net.URI;
-import java.net.URISyntaxException;
+
+import com.navaja.navajabackend.dto.OpenGraphData;
+import com.navaja.navajabackend.dto.QrGenerateRequest;
+import com.navaja.navajabackend.security.UrlSecurityValidator;
+import com.navaja.navajabackend.security.UsuarioPrincipal;
+import com.navaja.navajabackend.services.ImageConversionService;
+import com.navaja.navajabackend.services.OpenGraphService;
+import com.navaja.navajabackend.services.QrCodeService;
+import com.navaja.navajabackend.services.QuotaService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/tools")
@@ -84,7 +86,25 @@ public class ToolsController {
         
         boolean isPremium = quotaService.validarPlanPremium(usuarioId);
         
-        return imageConversionService.convert(file, format, isPremium, watermarkFile);
+        ImageConversionService.ConversionResult result = imageConversionService.convert(file, format, isPremium, watermarkFile);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(resolverMediaType(result.extension()));
+        headers.setContentDisposition(ContentDisposition.attachment().filename("converted-image." + result.extension()).build());
+        
+        return new ResponseEntity<>(result.data(), headers, HttpStatus.OK);
+    }
+
+    private MediaType resolverMediaType(String formato) {
+        return switch (formato.toLowerCase()) {
+            case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
+            case "png" -> MediaType.IMAGE_PNG;
+            case "webp" -> MediaType.valueOf("image/webp");
+            case "tiff", "tif" -> MediaType.valueOf("image/tiff");
+            case "bmp" -> MediaType.valueOf("image/bmp");
+            case "gif" -> MediaType.IMAGE_GIF;
+            default -> MediaType.APPLICATION_OCTET_STREAM;
+        };
     }
 
     private void validateHttpUri(String value) {
