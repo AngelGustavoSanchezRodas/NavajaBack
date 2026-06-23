@@ -1,11 +1,13 @@
 package com.navaja.navajabackend.controllers;
 
+import com.navaja.navajabackend.services.*;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,12 +19,10 @@ import com.navaja.navajabackend.dto.OpenGraphData;
 import com.navaja.navajabackend.dto.QrGenerateRequest;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
 import com.navaja.navajabackend.security.UsuarioPrincipal;
-import com.navaja.navajabackend.services.ImageConversionService;
-import com.navaja.navajabackend.services.OpenGraphService;
-import com.navaja.navajabackend.services.QrCodeService;
-import com.navaja.navajabackend.services.QuotaService;
 
 import jakarta.validation.Valid;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/tools")
@@ -33,13 +33,15 @@ public class ToolsController {
     private final QuotaService quotaService;
     private final ImageConversionService imageConversionService;
     private final UrlSecurityValidator urlSecurityValidator;
+    private final PdfService pdfService;
 
-    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator) {
+    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator, PdfService pdfService) {
         this.qrCodeService = qrCodeService;
         this.openGraphService = openGraphService;
         this.quotaService = quotaService;
         this.imageConversionService = imageConversionService;
         this.urlSecurityValidator = urlSecurityValidator;
+        this.pdfService = pdfService;
     }
 
     @GetMapping("/qr")
@@ -99,6 +101,20 @@ public class ToolsController {
             case "gif" -> MediaType.IMAGE_GIF;
             default -> MediaType.APPLICATION_OCTET_STREAM;
         };
+    }
+
+    @PostMapping("/identity/pdf")
+    public ResponseEntity<byte[]> descargarPdfIdentidad(@RequestBody Map<String, Object> requestData) {
+        // Generar PDF
+        byte[] pdfBytes = pdfService.generarCvPdf(requestData);
+
+        // Configurar los headers para forzar la descarga en el navegador
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        String filename = "CV_" + requestData.getOrDefault("nombre", "NavajaGT").toString().replaceAll("\\s+", "_") + ".pdf";
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
 
     private void validateHttpUri(String value) {

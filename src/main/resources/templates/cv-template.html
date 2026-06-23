@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>CV Express</title>
+    <style>
+        body { font-family: 'Helvetica', sans-serif; color: #334155; margin: 40px; }
+        .header { border-bottom: 3px solid #0d9488; padding-bottom: 10px; margin-bottom: 20px; }
+        .name { font-size: 28px; font-weight: bold; color: #0f172a; margin: 0; }
+        .title { font-size: 16px; color: #64748b; margin-top: 5px; }
+        .section-title { font-size: 14px; font-weight: bold; color: #0f172a; margin-top: 25px; margin-bottom: 10px; }
+        .description { font-size: 12px; line-height: 1.6; }
+        .links a { display: block; font-size: 12px; color: #0d9488; text-decoration: none; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <p class="name" th:text="${nombre}">Tu Nombre</p>
+        <p class="title" th:text="${cargo} + ' en ' + ${empresa}">Cargo en Empresa</p>
+    </div>
+
+    <div th:if="${descripcion != null}">
+        <p class="section-title">Sobre mí</p>
+        <p class="description" th:text="${descripcion}"></p>
+    </div>
+
+    <div>
+        <p class="section-title">Contacto y Enlaces</p>
+        <div class="links">
+            <a th:if="${email != null and email != ''}" th:href="'mailto:' + ${email}" th:text="'📧 ' + ${email}"></a>
+            <a th:if="${telefono != null and telefono != ''}" th:href="'tel:' + ${telefono}" th:text="'📱 ' + ${telefono}"></a>
+            <a th:if="${sitioWeb != null and sitioWeb != ''}" th:href="${sitioWeb}" th:text="'🌐 ' + ${sitioWeb}"></a>
+            <a th:if="${linkedin != null and linkedin != ''}" th:href="${linkedin}" th:text="'💼 LinkedIn'"></a>
+        </div>
+    </div>
+
+</body>
+</html>
