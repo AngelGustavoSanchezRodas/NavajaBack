@@ -1,39 +1,209 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>CV Express</title>
+    <meta charset="UTF-8" />
+    <title>Digital Identity</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; color: #334155; margin: 40px; }
-        .header { border-bottom: 3px solid #0d9488; padding-bottom: 10px; margin-bottom: 20px; }
-        .name { font-size: 28px; font-weight: bold; color: #0f172a; margin: 0; }
-        .title { font-size: 16px; color: #64748b; margin-top: 5px; }
-        .section-title { font-size: 14px; font-weight: bold; color: #0f172a; margin-top: 25px; margin-bottom: 10px; }
-        .description { font-size: 12px; line-height: 1.6; }
-        .links a { display: block; font-size: 12px; color: #0d9488; text-decoration: none; margin-bottom: 5px; }
+        @page {
+            size: A4 portrait;
+            margin: 20mm;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .container {
+            width: 100%;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .avatar-container {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px auto;
+            border-radius: 50%;
+            background-color: #0F172A;
+            color: #2DD4BF;
+            display: inline-block;
+            text-align: center;
+            line-height: 100px;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0F172A;
+            margin: 0;
+            padding: 0;
+        }
+        .title {
+            font-size: 16px;
+            color: #64748B;
+            margin: 5px 0 0 0;
+        }
+        .divider {
+            width: 50px;
+            height: 3px;
+            background-color: #2DD4BF;
+            margin: 20px auto;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0F172A;
+            border-bottom: 1px solid #E2E8F0;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+        .description {
+            color: #475569;
+            text-align: justify;
+        }
+        .contact-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .contact-table td {
+            padding: 5px 0;
+            vertical-align: top;
+        }
+        .contact-icon {
+            color: #2DD4BF;
+            font-weight: bold;
+            width: 30px;
+        }
+        .link {
+            color: #0F172A;
+            text-decoration: none;
+        }
+        .link:hover {
+            text-decoration: underline;
+            color: #2DD4BF;
+        }
+        .social-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .social-table td {
+            padding: 5px 0;
+            vertical-align: top;
+            width: 50%;
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <div class="avatar-container">
+                <span th:text="${#strings.substring(identity.nombre,0,1).toUpperCase() + #strings.substring(identity.nombre,#strings.indexOf(identity.nombre,' ')+1,#strings.indexOf(identity.nombre,' ')+2).toUpperCase()}" th:if="${identity.nombre != null and #strings.contains(identity.nombre, ' ')}">JD</span>
+                <span th:text="${#strings.substring(identity.nombre,0,2).toUpperCase()}" th:if="${identity.nombre != null and !#strings.contains(identity.nombre, ' ')}">JD</span>
+                <span th:if="${identity.nombre == null or identity.nombre.isEmpty()}">ID</span>
+            </div>
+            <h1 class="name" th:text="${identity.nombre ?: 'Tu Nombre'}">Juan Pérez</h1>
+            <p class="title">
+                <span th:text="${identity.cargo ?: 'Tu Cargo'}">Director</span>
+                <span th:if="${identity.cargo != null and !identity.cargo.isEmpty() and identity.empresa != null and !identity.empresa.isEmpty()}"> | </span>
+                <span th:text="${identity.empresa ?: 'Tu Empresa'}">Empresa S.A.</span>
+            </p>
+            <div class="divider"></div>
+        </div>
 
-    <div class="header">
-        <p class="name" th:text="${nombre}">Tu Nombre</p>
-        <p class="title" th:text="${cargo} + ' en ' + ${empresa}">Cargo en Empresa</p>
-    </div>
+        <div class="section" th:if="${identity.descripcion != null and !identity.descripcion.isEmpty()}">
+            <div class="section-title">Sobre Mí</div>
+            <div class="description" th:text="${identity.descripcion}">
+                Breve descripción profesional.
+            </div>
+        </div>
 
-    <div th:if="${descripcion != null}">
-        <p class="section-title">Sobre mí</p>
-        <p class="description" th:text="${descripcion}"></p>
-    </div>
+        <div class="section">
+            <div class="section-title">Contacto</div>
+            <table class="contact-table">
+                <tr th:if="${identity.telefono != null and !identity.telefono.isEmpty()}">
+                    <td class="contact-icon">T</td>
+                    <td><a class="link" th:href="'tel:' + ${identity.telefono}" th:text="${identity.telefono}">+502 1234-5678</a></td>
+                </tr>
+                <tr th:if="${identity.email != null and !identity.email.isEmpty()}">
+                    <td class="contact-icon">E</td>
+                    <td><a class="link" th:href="'mailto:' + ${identity.email}" th:text="${identity.email}">hola@ejemplo.com</a></td>
+                </tr>
+                <tr th:if="${identity.sitioWeb != null and !identity.sitioWeb.isEmpty()}">
+                    <td class="contact-icon">W</td>
+                    <td><a class="link" th:href="${identity.sitioWeb}" th:text="${identity.sitioWeb}">https://navaja.gt</a></td>
+                </tr>
+            </table>
+        </div>
 
-    <div>
-        <p class="section-title">Contacto y Enlaces</p>
-        <div class="links">
-            <a th:if="${email != null and email != ''}" th:href="'mailto:' + ${email}" th:text="'📧 ' + ${email}"></a>
-            <a th:if="${telefono != null and telefono != ''}" th:href="'tel:' + ${telefono}" th:text="'📱 ' + ${telefono}"></a>
-            <a th:if="${sitioWeb != null and sitioWeb != ''}" th:href="${sitioWeb}" th:text="'🌐 ' + ${sitioWeb}"></a>
-            <a th:if="${linkedin != null and linkedin != ''}" th:href="${linkedin}" th:text="'💼 LinkedIn'"></a>
+        <div class="section">
+            <div class="section-title">Redes Sociales</div>
+            <table class="social-table">
+                <tr>
+                    <td th:if="${identity.linkedin != null and !identity.linkedin.isEmpty()}">
+                        <span class="contact-icon">in</span> <a class="link" th:href="${identity.linkedin}" th:text="${#strings.replace(identity.linkedin, 'https://', '')}">linkedin.com/in/...</a>
+                    </td>
+                    <td th:if="${identity.github != null and !identity.github.isEmpty()}">
+                        <span class="contact-icon">gh</span> <a class="link" th:href="${identity.github}" th:text="${#strings.replace(identity.github, 'https://', '')}">github.com/...</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td th:if="${identity.twitter != null and !identity.twitter.isEmpty()}">
+                        <span class="contact-icon">tw</span> <a class="link" th:href="${identity.twitter}" th:text="${#strings.replace(identity.twitter, 'https://', '')}">twitter.com/...</a>
+                    </td>
+                    <td th:if="${identity.youtube != null and !identity.youtube.isEmpty()}">
+                        <span class="contact-icon">yt</span> <a class="link" th:href="${identity.youtube}" th:text="${#strings.replace(identity.youtube, 'https://', '')}">youtube.com/...</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td th:if="${identity.tiktok != null and !identity.tiktok.isEmpty()}">
+                        <span class="contact-icon">tk</span> <a class="link" th:href="${identity.tiktok}" th:text="${#strings.replace(identity.tiktok, 'https://', '')}">tiktok.com/...</a>
+                    </td>
+                    <td th:if="${identity.twitch != null and !identity.twitch.isEmpty()}">
+                        <span class="contact-icon">twc</span> <a class="link" th:href="${identity.twitch}" th:text="${#strings.replace(identity.twitch, 'https://', '')}">twitch.tv/...</a>
+                    </td>
+                </tr>
+                 <tr>
+                    <td th:if="${identity.discord != null and !identity.discord.isEmpty()}">
+                        <span class="contact-icon">dc</span> <a class="link" th:href="${identity.discord}" th:text="${#strings.replace(identity.discord, 'https://', '')}">discord.gg/...</a>
+                    </td>
+                    <td th:if="${identity.reddit != null and !identity.reddit.isEmpty()}">
+                        <span class="contact-icon">rd</span> <a class="link" th:href="${identity.reddit}" th:text="${#strings.replace(identity.reddit, 'https://', '')}">reddit.com/...</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td th:if="${identity.behance != null and !identity.behance.isEmpty()}">
+                        <span class="contact-icon">bh</span> <a class="link" th:href="${identity.behance}" th:text="${#strings.replace(identity.behance, 'https://', '')}">behance.net/...</a>
+                    </td>
+                    <td th:if="${identity.dribbble != null and !identity.dribbble.isEmpty()}">
+                        <span class="contact-icon">dr</span> <a class="link" th:href="${identity.dribbble}" th:text="${#strings.replace(identity.dribbble, 'https://', '')}">dribbble.com/...</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td th:if="${identity.gitlab != null and !identity.gitlab.isEmpty()}">
+                        <span class="contact-icon">gl</span> <a class="link" th:href="${identity.gitlab}" th:text="${#strings.replace(identity.gitlab, 'https://', '')}">gitlab.com/...</a>
+                    </td>
+                    <td th:if="${identity.medium != null and !identity.medium.isEmpty()}">
+                        <span class="contact-icon">md</span> <a class="link" th:href="${identity.medium}" th:text="${#strings.replace(identity.medium, 'https://', '')}">medium.com/...</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td th:if="${identity.devto != null and !identity.devto.isEmpty()}">
+                        <span class="contact-icon">dv</span> <a class="link" th:href="${identity.devto}" th:text="${#strings.replace(identity.devto, 'https://', '')}">dev.to/...</a>
+                    </td>
+                    <td th:if="${identity.stackoverflow != null and !identity.stackoverflow.isEmpty()}">
+                        <span class="contact-icon">so</span> <a class="link" th:href="${identity.stackoverflow}" th:text="${#strings.replace(identity.stackoverflow, 'https://', '')}">stackoverflow.com/...</a>
+                    </td>
+                </tr>
+            </table>
         </div>
     </div>
-
 </body>
 </html>
