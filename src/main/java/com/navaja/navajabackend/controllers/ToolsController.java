@@ -33,15 +33,13 @@ public class ToolsController {
     private final QuotaService quotaService;
     private final ImageConversionService imageConversionService;
     private final UrlSecurityValidator urlSecurityValidator;
-    private final PdfService pdfService;
 
-    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator, PdfService pdfService) {
+    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator) {
         this.qrCodeService = qrCodeService;
         this.openGraphService = openGraphService;
         this.quotaService = quotaService;
         this.imageConversionService = imageConversionService;
         this.urlSecurityValidator = urlSecurityValidator;
-        this.pdfService = pdfService;
     }
 
     @GetMapping("/qr")
@@ -103,19 +101,7 @@ public class ToolsController {
         };
     }
 
-    @PostMapping("/identity/pdf")
-    public ResponseEntity<byte[]> descargarPdfIdentidad(@RequestBody Map<String, Object> requestData) {
-        // Generar PDF
-        byte[] pdfBytes = pdfService.generarCvPdf(requestData);
 
-        // Configurar los headers para forzar la descarga en el navegador
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_PDF);
-        String filename = "CV_" + requestData.getOrDefault("nombre", "NavajaGT").toString().replaceAll("\\s+", "_") + ".pdf";
-        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
-
-        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
-    }
 
     private void validateHttpUri(String value) {
         urlSecurityValidator.validateSafeUrl(value);
