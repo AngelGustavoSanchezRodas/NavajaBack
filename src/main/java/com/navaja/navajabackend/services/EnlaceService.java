@@ -9,9 +9,11 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.navaja.navajabackend.dto.ActualizarEnlaceRequest;
@@ -25,6 +27,7 @@ import com.navaja.navajabackend.models.Usuario;
 import com.navaja.navajabackend.repositories.ClicRepository;
 import com.navaja.navajabackend.repositories.EnlaceRepository;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
+import com.navaja.navajabackend.security.UsuarioPrincipal;
 
 @Service
 public class EnlaceService {
@@ -154,18 +157,13 @@ public class EnlaceService {
 
     @Transactional
     @CacheEvict(value = "enlaces", key = "#result.codigoCorto")
-    public EnlaceResponse actualizarEnlace(Long enlaceId, ActualizarEnlaceRequest request) {
-        Usuario usuario = authenticatedUserResolver.resolveOrNull();
-        if (usuario == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
-        }
-
-        Enlace enlace = enlaceRepository.findByIdAndUsuarioId(enlaceId, usuario.getId())
+    public EnlaceResponse actualizarEnlace(Long enlaceId, ActualizarEnlaceRequest request, Long usuarioId) {
+        Enlace enlace = enlaceRepository.findByIdAndUsuarioId(enlaceId, usuarioId)
                 .orElseThrow(EnlaceNoEncontradoException::new);
 
-        if (request.urlOriginal() != null && !request.urlOriginal().isBlank()) {
+        if (StringUtils.hasText(request.urlOriginal()) && !request.urlOriginal().equals(enlace.getUrlOriginal())) {
             urlSecurityValidator.validateSafeUrl(request.urlOriginal());
-            enlace.setUrlOriginal(request.urlOriginal());
+            enlace.setUrlOriginal(request.urlOriginal().trim());
         }
 
         if (request.esDinamico() != null) {
@@ -180,18 +178,34 @@ public class EnlaceService {
             enlace.setMetadata(newMeta);
         }
 
-        Enlace saved = guardarEnlace(enlace);
-        return enlaceMapper.toResponse(saved);
+        String nuevoAlias = request.alias();
+
+        if (StringUtils.hasText(nuevoAlias)) {
+            nuevoAlias = nuevoAlias.trim();
+            if (!nuevoAlias.equals(enlace.getCodigoCorto())) {
+                if (!nuevoAlias.matches("^[a-zA-Z0-9_-]+$")) {
+                    throw new IllegalArgumentException("El alias solo puede contener letras, números, guiones y guiones bajos.");
+                }
+                if (enlaceRepository.existsByCodigoCorto(nuevoAlias)) {
+                    throw new AliasEnUsoException("El alias '" + nuevoAlias + "' ya está en uso.");
+                }
+                enlace.setCodigoCorto(nuevoAlias);
+            }
+        }
+
+        Enlace guardado = guardarEnlace(enlace);
+        return enlaceMapper.toResponse(guardado);
     }
 
     @Transactional(readOnly = true)
-    public List<EnlaceResponse> listarEnlaces(Long usuarioId) {
+    public List<EnlaceResponse> listarTodosLosEnlacesDelUsuario(Long usuarioId) {
         if (usuarioId == null) {
-            throw new IllegalArgumentException("El usuarioId es obligatorio para listar enlaces");
+            throw new IllegalArgumentException("El ID del usuario es obligatorio.");
         }
-        List<Enlace> enlaces = enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(usuarioId);
-
-        return enlaces.stream().map(enlaceMapper::toResponse).toList();
+        return enlaceRepository.findAllByUsuarioIdOrderByFechaCreacionDesc(usuarioId)
+                .stream()
+                .map(enlaceMapper::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -203,6 +217,7 @@ public class EnlaceService {
 
         return enlaces.stream().map(enlaceMapper::toResponse).toList();
     }
+    
 
     @Transactional(readOnly = true)
     @Cacheable(value = "enlaces", key = "#codigoCorto", unless = "#result == null")

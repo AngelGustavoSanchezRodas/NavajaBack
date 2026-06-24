@@ -1,13 +1,9 @@
 package com.navaja.navajabackend.controllers;
 
-import com.navaja.navajabackend.services.*;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,10 +15,12 @@ import com.navaja.navajabackend.dto.OpenGraphData;
 import com.navaja.navajabackend.dto.QrGenerateRequest;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
 import com.navaja.navajabackend.security.UsuarioPrincipal;
+import com.navaja.navajabackend.services.ImageConversionService;
+import com.navaja.navajabackend.services.OpenGraphService;
+import com.navaja.navajabackend.services.QrCodeService;
+import com.navaja.navajabackend.services.QuotaService;
 
 import jakarta.validation.Valid;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/tools")
@@ -100,8 +98,6 @@ public class ToolsController {
             default -> MediaType.APPLICATION_OCTET_STREAM;
         };
     }
-
-
 
     private void validateHttpUri(String value) {
         urlSecurityValidator.validateSafeUrl(value);

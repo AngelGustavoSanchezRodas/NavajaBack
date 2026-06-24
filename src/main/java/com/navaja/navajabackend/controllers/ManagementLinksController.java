@@ -32,7 +32,8 @@ public class ManagementLinksController {
 
     @GetMapping("/list")
     public ResponseEntity<List<EnlaceResponse>> listarEnlaces(@AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ResponseEntity.ok(enlaceService.listarEnlacesPorTipo(principal.getId(), TipoEnlace.STANDARD));
+        List<EnlaceResponse> enlaces = enlaceService.listarTodosLosEnlacesDelUsuario(principal.getId());
+        return ResponseEntity.ok(enlaces);
     }
 
     @PutMapping("/{id}")
@@ -40,7 +41,7 @@ public class ManagementLinksController {
             @PathVariable Long id,
             @Valid @RequestBody ActualizarEnlaceRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request));
+        return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request, principal.getId()));
     }
 
     @DeleteMapping("/{id}")

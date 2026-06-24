@@ -34,7 +34,7 @@ public class ManagementSignatureController {
             @PathVariable Long id,
             @Valid @RequestBody ActualizarEnlaceRequest request,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request));
+        return ResponseEntity.ok(enlaceService.actualizarEnlace(id, request, principal.getId()));
     }
 
     @DeleteMapping("/{id}")
