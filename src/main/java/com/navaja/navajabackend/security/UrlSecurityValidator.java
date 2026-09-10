@@ -33,10 +33,10 @@ public class UrlSecurityValidator {
             throw new IllegalArgumentException("La URL enviada no tiene un formato válido", e);
         } catch (java.net.UnknownHostException e) {
             throw new IllegalArgumentException("El host de la URL no se pudo resolver", e);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (SecurityException e) {
             throw e;
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error al validar la URL", e);
         }
     }
 

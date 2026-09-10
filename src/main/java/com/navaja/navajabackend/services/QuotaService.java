@@ -34,8 +34,6 @@ public class QuotaService {
         this.usuarioRepository = usuarioRepository;
     }
 
-    // ... (resto de tus importaciones y constantes) ...
-
     public void verificarLimite(Usuario usuario, String aliasPersonalizado) {
         if (usuario == null) {
             return;
@@ -113,6 +111,19 @@ public class QuotaService {
         registrarUso("IMAGE_CONVERSION", usuarioId, identificadorCliente);
     }
 
+    private void registrarUso(String tipoUso, String usuarioId, String identificadorCliente) {
+        if (validarPlanPremium(usuarioId)) {
+            return;
+        }
+
+        String clave = claveUso(usuarioId, identificadorCliente, tipoUso);
+        usos.compute(clave, (key, actual) -> {
+            UsoVentana ventana = normalizarVentana(actual);
+            ventana.incrementar();
+            return ventana;
+        });
+    }
+
     private void validarUso(String tipoUso, String usuarioId, String identificadorCliente) {
         if (validarPlanPremium(usuarioId)) {
             return;
@@ -127,23 +138,10 @@ public class QuotaService {
         }
     }
 
-    private void registrarUso(String tipoUso, String usuarioId, String identificadorCliente) {
-        if (validarPlanPremium(usuarioId)) {
-            return;
-        }
-
-        String clave = claveUso(usuarioId, identificadorCliente, tipoUso);
-        usos.compute(clave, (key, actual) -> {
-            UsoVentana ventana = normalizarVentana(actual);
-            ventana.incrementar();
-            return ventana;
-        });
-    }
-
     private UsoVentana normalizarVentana(UsoVentana actual) {
         OffsetDateTime ahora = OffsetDateTime.now();
         if (actual == null || actual.expiraEn.isBefore(ahora)) {
-            return new UsoVentana(1, ahora.plus(VENTANA_USO));
+            return new UsoVentana(0, ahora.plus(VENTANA_USO));
         }
         return actual;
     }
@@ -206,7 +204,7 @@ public class QuotaService {
         }
 
         private void incrementar() {
-            this.cantidad++;
+            cantidad++;
         }
     }
 

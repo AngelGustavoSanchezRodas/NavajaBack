@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.navaja.navajabackend.dto.QrGenerateRequest;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
@@ -40,10 +41,13 @@ public class ToolsController {
     public ResponseEntity<byte[]> generateQr(
             @RequestParam String url,
             @RequestParam(defaultValue = "300") int width,
-            @RequestParam(defaultValue = "300") int height
+            @RequestParam(defaultValue = "300") int height,
+            HttpServletRequest httpRequest
     ) {
         urlSecurityValidator.validateSafeUrl(url);
+        quotaService.validarCreacionQr(null, httpRequest.getRemoteAddr());
         byte[] image = qrCodeService.generateStandardQr(url, width, height);
+        quotaService.registrarCreacionQr(null, httpRequest.getRemoteAddr());
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
                 .body(image);
@@ -52,10 +56,14 @@ public class ToolsController {
     @PostMapping("/qr/generate")
     public ResponseEntity<byte[]> generatePremiumQr(
             @AuthenticationPrincipal UsuarioPrincipal principal,
-            @Valid @RequestBody QrGenerateRequest request
+            @Valid @RequestBody QrGenerateRequest request,
+            HttpServletRequest httpRequest
     ) {
         String usuarioId = principal == null ? null : String.valueOf(principal.getId());
+        String identificadorCliente = principal == null ? httpRequest.getRemoteAddr() : usuarioId;
+        quotaService.validarCreacionQr(usuarioId, identificadorCliente);
         byte[] image = qrCodeService.generarQrPremium(request, usuarioId);
+        quotaService.registrarCreacionQr(usuarioId, identificadorCliente);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
                 .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
@@ -67,13 +75,18 @@ public class ToolsController {
             @AuthenticationPrincipal UsuarioPrincipal principal,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam("format") String format,
-            @RequestParam(value = "watermark", required = false) org.springframework.web.multipart.MultipartFile watermarkFile
+            @RequestParam(value = "watermark", required = false) org.springframework.web.multipart.MultipartFile watermarkFile,
+            HttpServletRequest httpRequest
     ) {
         String usuarioId = principal == null ? null : String.valueOf(principal.getId());
+        String identificadorCliente = principal == null ? httpRequest.getRemoteAddr() : usuarioId;
         quotaService.validarConversionPremium(usuarioId, format);
+        quotaService.validarUsoConversionImagen(usuarioId, identificadorCliente);
         
         boolean isPremium = quotaService.validarPlanPremium(usuarioId);
         
-        return imageConversionService.convert(file, format, isPremium, watermarkFile);
+        ResponseEntity<byte[]> response = imageConversionService.convert(file, format, isPremium, watermarkFile);
+        quotaService.registrarUsoConversionImagen(usuarioId, identificadorCliente);
+        return response;
     }
 }

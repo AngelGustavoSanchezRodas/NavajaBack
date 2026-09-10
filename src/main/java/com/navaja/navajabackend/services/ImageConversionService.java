@@ -38,18 +38,18 @@ public class ImageConversionService {
 
             if (!isPremium) {
                 // Lógica Gratis: Marca de agua por defecto ajustada dinámicamente
-                try {
-                    InputStream defaultWatermarkStream = new ClassPathResource("watermark.png").getInputStream();
-                    BufferedImage watermarkImage = ImageIO.read(defaultWatermarkStream);
-                    if (watermarkImage != null) {
-                        BufferedImage resizedWatermark = Thumbnails.of(watermarkImage)
-                                .width(watermarkTargetWidth)
-                                .keepAspectRatio(true)
-                                .asBufferedImage();
-                        builder.watermark(Positions.BOTTOM_RIGHT, resizedWatermark, 0.5f);
+                ClassPathResource watermarkResource = new ClassPathResource("watermark.png");
+                if (watermarkResource.exists()) {
+                    try (InputStream defaultWatermarkStream = watermarkResource.getInputStream()) {
+                        BufferedImage watermarkImage = ImageIO.read(defaultWatermarkStream);
+                        if (watermarkImage != null) {
+                            BufferedImage resizedWatermark = Thumbnails.of(watermarkImage)
+                                    .width(watermarkTargetWidth)
+                                    .keepAspectRatio(true)
+                                    .asBufferedImage();
+                            builder.watermark(Positions.BOTTOM_RIGHT, resizedWatermark, 0.5f);
+                        }
                     }
-                } catch (Exception e) {
-                    // Ignorar si no existe el archivo watermark.png local
                 }
             } else if (watermarkFile != null && !watermarkFile.isEmpty()) {
                 // Lógica PRO: Marca de agua del usuario ajustada dinámicamente

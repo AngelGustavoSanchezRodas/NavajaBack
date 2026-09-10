@@ -9,11 +9,9 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.navaja.navajabackend.dto.ActualizarEnlaceRequest;
@@ -27,7 +25,6 @@ import com.navaja.navajabackend.models.Usuario;
 import com.navaja.navajabackend.repositories.ClicRepository;
 import com.navaja.navajabackend.repositories.EnlaceRepository;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
-import com.navaja.navajabackend.security.UsuarioPrincipal;
 
 @Service
 public class EnlaceService {
@@ -67,7 +64,6 @@ public class EnlaceService {
     public EnlaceResponse crearEnlace(CrearEnlaceRequest request) {
         Usuario usuario = authenticatedUserResolver.resolveOrNull();
         
-        // 1. Lectura Defensiva: Extraemos el alias sin importar qué campo use el frontend
         String aliasPersonalizado = StringUtils.hasText(request.alias()) ? request.alias() : request.codigoCorto();
         
         String tipoHerramienta = normalizarTipoHerramienta(request.tipoHerramienta());
@@ -79,7 +75,6 @@ public class EnlaceService {
 
         OffsetDateTime fechaExpiracion = null;
         if (usuario != null) {
-            // Usamos el alias extraído de forma segura
             quotaService.verificarLimite(usuario, aliasPersonalizado);
         } else {
             fechaExpiracion = OffsetDateTime.now().plusHours(24);
@@ -87,13 +82,12 @@ public class EnlaceService {
 
         if (tipoEnlace == TipoEnlace.STANDARD) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionAcortador(usuarioIdStr, aliasPersonalizado);
+            quotaService.validarCreacionAcortador(usuarioIdStr, usuarioIdStr);
         } else if (tipoEnlace == TipoEnlace.QR) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionQr(usuarioIdStr, aliasPersonalizado);
+            quotaService.validarCreacionQr(usuarioIdStr, usuarioIdStr);
         }
 
-        // 2. Sanitización y resolución del código corto final
         String codigoCorto = resolverCodigoCorto(request);
 
         Enlace enlace = new Enlace();
@@ -106,30 +100,30 @@ public class EnlaceService {
         enlace.setTipo(tipoEnlace);
         
         Map<String, Object> mapMeta = enlaceMapper.toMetadata(request.metadata());
-        if (request.urlOriginal() != null && !request.urlOriginal().isBlank()) {
-            urlSecurityValidator.validateSafeUrl(request.urlOriginal());
-        }
+        urlSecurityValidator.validateSafeUrl(request.urlOriginal());
 
         enlace.setMetadata(mapMeta);
 
         Enlace saved = guardarEnlace(enlace);
+        String usuarioId = usuario == null ? null : String.valueOf(usuario.getId());
+        if (tipoEnlace == TipoEnlace.QR) {
+            quotaService.registrarCreacionQr(usuarioId, usuarioId);
+        } else if (tipoEnlace == TipoEnlace.STANDARD) {
+            quotaService.registrarCreacionAcortador(usuarioId, usuarioId);
+        }
 
         return enlaceMapper.toResponse(saved);
     }
 
     private String resolverCodigoCorto(CrearEnlaceRequest request) {
-        // Unificamos la validación para tolerar ambigüedad en el DTO del frontend
         String customAlias = StringUtils.hasText(request.alias()) ? request.alias() : request.codigoCorto();
 
         if (!StringUtils.hasText(customAlias)) {
             return generateUniqueShortcode();
         }
 
-        // Limpieza de espacios accidentales
         customAlias = customAlias.trim();
 
-        // 3. Regla Arquitectónica: Sanitización estricta (URL-Safe)
-        // Evita que el usuario ingrese @, espacios, ñ, acentos o símbolos que rompan la URL
         if (!customAlias.matches("^[a-zA-Z0-9_-]+$")) {
             throw new IllegalArgumentException("El alias personalizado solo puede contener letras, números, guiones y guiones bajos (Sin espacios ni símbolos como @).");
         }
@@ -184,7 +178,6 @@ public class EnlaceService {
         Enlace guardado = guardarEnlace(enlace);
         return enlaceMapper.toResponse(guardado);
     }
-
     @Transactional(readOnly = true)
     public List<EnlaceResponse> listarTodosLosEnlacesDelUsuario(Long usuarioId) {
         if (usuarioId == null) {
@@ -220,7 +213,6 @@ public class EnlaceService {
         return enlace;
     }
 
-    @org.springframework.cache.annotation.Cacheable(value = "enlaces", key = "#alias", unless = "#result == null")
     public String obtenerUrlOriginalPorAlias(String alias) {
         Enlace enlace = obtenerEnlacePorCodigoCorto(alias);
 
