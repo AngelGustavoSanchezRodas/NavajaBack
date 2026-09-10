@@ -31,7 +31,11 @@ buildNumber.properties
 # === CREDENCIALES ===
 application-local.yaml
 application-secret.yaml
+.env
+.env.*
+!.env.example
+src/main/resources/application-secret.yaml
+src/main/resources/application-local.yaml
 
 RENDER_CHECKLIST.md
 RESUMEN_TRABAJO.md
-

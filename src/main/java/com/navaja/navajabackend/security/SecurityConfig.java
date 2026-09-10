@@ -11,10 +11,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -61,19 +63,21 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 1. Corrección arquitectónica: Patrón de localhost válido con asterisco
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", frontendUrl));
+        List<String> allowedOrigins = new ArrayList<>(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        String normalizedFrontendOrigin = frontendUrl == null ? null : frontendUrl.replaceAll("/+$", "");
+        if (StringUtils.hasText(normalizedFrontendOrigin)) {
+            allowedOrigins.add(normalizedFrontendOrigin);
+        }
+        configuration.setAllowedOriginPatterns(allowedOrigins);
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
-        // 2. Seguridad: Es mejor ser explícito con los headers permitidos en lugar de usar "*" en producción
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
 
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // Cachear pre-flight requests por 1 hora
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // 3. Aplicar globalmente a toda la API
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

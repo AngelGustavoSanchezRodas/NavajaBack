@@ -85,12 +85,7 @@ public class EnlaceService {
             fechaExpiracion = OffsetDateTime.now().plusHours(24);
         }
 
-        if (tipoEnlace == TipoEnlace.SIGNATURE) {
-            Object templateObj = request.metadata() == null ? null : request.metadata().get("templateId");
-            String templateId = templateObj == null ? null : String.valueOf(templateObj);
-            String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
-            quotaService.validarCreacionFirma(usuarioIdStr, templateId);
-        } else if (tipoEnlace == TipoEnlace.STANDARD) {
+        if (tipoEnlace == TipoEnlace.STANDARD) {
             String usuarioIdStr = usuario == null ? null : String.valueOf(usuario.getId());
             quotaService.validarCreacionAcortador(usuarioIdStr, aliasPersonalizado);
         } else if (tipoEnlace == TipoEnlace.QR) {
@@ -111,9 +106,7 @@ public class EnlaceService {
         enlace.setTipo(tipoEnlace);
         
         Map<String, Object> mapMeta = enlaceMapper.toMetadata(request.metadata());
-        if (tipoEnlace == TipoEnlace.SIGNATURE && mapMeta != null && mapMeta.get("imageUrl") != null) {
-            urlSecurityValidator.validateImageUrl(String.valueOf(mapMeta.get("imageUrl")));
-        } else if (request.urlOriginal() != null && !request.urlOriginal().isBlank()) {
+        if (request.urlOriginal() != null && !request.urlOriginal().isBlank()) {
             urlSecurityValidator.validateSafeUrl(request.urlOriginal());
         }
 
@@ -123,8 +116,6 @@ public class EnlaceService {
 
         return enlaceMapper.toResponse(saved);
     }
-
-    // --- REEMPLAZA TAMBIÉN ESTE MÉTODO MÁS ABAJO EN EL MISMO ARCHIVO ---
 
     private String resolverCodigoCorto(CrearEnlaceRequest request) {
         // Unificamos la validación para tolerar ambigüedad en el DTO del frontend
@@ -172,9 +163,6 @@ public class EnlaceService {
 
         if (request.metadata() != null) {
             Map<String, Object> newMeta = enlaceMapper.toMetadata(request.metadata());
-            if (enlace.getTipo() == TipoEnlace.SIGNATURE && newMeta.get("imageUrl") != null) {
-                urlSecurityValidator.validateImageUrl(String.valueOf(newMeta.get("imageUrl")));
-            }
             enlace.setMetadata(newMeta);
         }
 

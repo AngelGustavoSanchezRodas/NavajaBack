@@ -11,12 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.navaja.navajabackend.dto.OpenGraphData;
 import com.navaja.navajabackend.dto.QrGenerateRequest;
 import com.navaja.navajabackend.security.UrlSecurityValidator;
 import com.navaja.navajabackend.security.UsuarioPrincipal;
 import com.navaja.navajabackend.services.ImageConversionService;
-import com.navaja.navajabackend.services.OpenGraphService;
 import com.navaja.navajabackend.services.QrCodeService;
 import com.navaja.navajabackend.services.QuotaService;
 
@@ -27,14 +25,12 @@ import jakarta.validation.Valid;
 public class ToolsController {
 
     private final QrCodeService qrCodeService;
-    private final OpenGraphService openGraphService;
     private final QuotaService quotaService;
     private final ImageConversionService imageConversionService;
     private final UrlSecurityValidator urlSecurityValidator;
 
-    public ToolsController(QrCodeService qrCodeService, OpenGraphService openGraphService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator) {
+    public ToolsController(QrCodeService qrCodeService, QuotaService quotaService, ImageConversionService imageConversionService, UrlSecurityValidator urlSecurityValidator) {
         this.qrCodeService = qrCodeService;
-        this.openGraphService = openGraphService;
         this.quotaService = quotaService;
         this.imageConversionService = imageConversionService;
         this.urlSecurityValidator = urlSecurityValidator;
@@ -51,12 +47,6 @@ public class ToolsController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
                 .body(image);
-    }
-
-    @GetMapping("/opengraph")
-    public ResponseEntity<OpenGraphData> getOpenGraph(@RequestParam String url) {
-        urlSecurityValidator.validateSafeUrl(url);
-        return ResponseEntity.ok(openGraphService.extract(url));
     }
 
     @PostMapping("/qr/generate")
@@ -86,21 +76,4 @@ public class ToolsController {
         
         return imageConversionService.convert(file, format, isPremium, watermarkFile);
     }
-
-    private MediaType resolverMediaType(String formato) {
-        return switch (formato.toLowerCase()) {
-            case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
-            case "png" -> MediaType.IMAGE_PNG;
-            case "webp" -> MediaType.valueOf("image/webp");
-            case "tiff", "tif" -> MediaType.valueOf("image/tiff");
-            case "bmp" -> MediaType.valueOf("image/bmp");
-            case "gif" -> MediaType.IMAGE_GIF;
-            default -> MediaType.APPLICATION_OCTET_STREAM;
-        };
-    }
-
-    private void validateHttpUri(String value) {
-        urlSecurityValidator.validateSafeUrl(value);
-    }
 }
-

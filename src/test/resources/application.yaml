@@ -11,6 +11,7 @@ spring:
     type: simple
 
 app:
+  jwt:
+    secret: test-jwt-secret-key-12345678901234567890
   frontend:
     url: http://localhost:3000
-

@@ -45,4 +45,3 @@ Accept: application/json
 
 ### 6) Tools
 GET {{baseUrl}}/api/v1/tools/qr?url=https://google.com
-GET {{baseUrl}}/api/v1/tools/opengraph?url=https://github.com

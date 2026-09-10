@@ -16,8 +16,6 @@ import net.coobird.thumbnailator.geometry.Positions;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
-import java.awt.Color;
-import java.awt.Graphics2D;
 
 @Service
 public class ImageConversionService {
@@ -79,19 +77,6 @@ public class ImageConversionService {
         } catch (IOException exception) {
             throw new IllegalArgumentException("No fue posible convertir la imagen", exception);
         }
-    }
-
-    private BufferedImage corregirTransparencia(BufferedImage imagen, String formato) {
-        if (("jpg".equals(formato) || "jpeg".equals(formato) || "bmp".equals(formato)) && imagen.getColorModel().hasAlpha()) {
-            BufferedImage imagenSinTransparencia = new BufferedImage(imagen.getWidth(), imagen.getHeight(), BufferedImage.TYPE_INT_RGB);
-            Graphics2D g2d = imagenSinTransparencia.createGraphics();
-            g2d.setColor(Color.WHITE);
-            g2d.fillRect(0, 0, imagenSinTransparencia.getWidth(), imagenSinTransparencia.getHeight());
-            g2d.drawImage(imagen, 0, 0, null);
-            g2d.dispose();
-            return imagenSinTransparencia;
-        }
-        return imagen;
     }
 
     private String validarYNormalizarFormato(String formato) {

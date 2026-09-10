@@ -14,9 +14,17 @@ public class CorsConfig implements WebMvcConfigurer {
         this.rateLimitInterceptor = rateLimitInterceptor;
     }
 
+    /**
+     *
+     * @param registry
+     */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
-                .addPathPatterns("/api/v1/tools/**");
+                .addPathPatterns(
+                        "/api/v1/tools/**",
+                        "/api/auth/login",
+                        "/api/auth/register"
+                );
     }
 }

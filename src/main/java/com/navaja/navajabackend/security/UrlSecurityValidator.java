@@ -1,25 +1,12 @@
 package com.navaja.navajabackend.security;
 
 import org.springframework.stereotype.Service;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 @Service
 public class UrlSecurityValidator {
-
-    private final RestTemplate restTemplate;
-
-    public UrlSecurityValidator() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(3000);
-        factory.setReadTimeout(3000);
-        this.restTemplate = new RestTemplate(factory);
-    }
 
     public void validateSafeUrl(String urlString) {
         if (urlString == null || urlString.isBlank()) {
@@ -53,22 +40,4 @@ public class UrlSecurityValidator {
         }
     }
 
-    public void validateImageUrl(String urlString) {
-        validateSafeUrl(urlString);
-        try {
-            ResponseEntity<Void> response = restTemplate.exchange(urlString, HttpMethod.HEAD, null, Void.class);
-            if (response.getStatusCode().is2xxSuccessful()) {
-                String contentType = response.getHeaders().getFirst("Content-Type");
-                if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
-                    throw new IllegalArgumentException("La URL no apunta a una imagen válida (Content-Type: " + contentType + ")");
-                }
-            } else {
-                throw new IllegalArgumentException("No se pudo acceder a la imagen, código de estado: " + response.getStatusCode().value());
-            }
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalArgumentException("No fue posible validar la imagen en la URL proporcionada: " + e.getMessage());
-        }
-    }
 }

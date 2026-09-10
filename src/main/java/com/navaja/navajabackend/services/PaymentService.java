@@ -9,6 +9,7 @@ import com.navaja.navajabackend.models.Usuario;
 import com.navaja.navajabackend.repositories.PagoManualRepository;
 import com.navaja.navajabackend.repositories.SuscripcionRepository;
 import com.navaja.navajabackend.repositories.UsuarioRepository;
+import com.navaja.navajabackend.security.UrlSecurityValidator;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +25,20 @@ public class PaymentService {
     private final SuscripcionRepository suscripcionRepository;
     private final UsuarioRepository usuarioRepository;
     private final AuthenticatedUserResolver userResolver;
+    private final UrlSecurityValidator urlSecurityValidator;
 
-    public PaymentService(PagoManualRepository pagoManualRepository, SuscripcionRepository suscripcionRepository, UsuarioRepository usuarioRepository, AuthenticatedUserResolver userResolver) {
+    public PaymentService(
+            PagoManualRepository pagoManualRepository,
+            SuscripcionRepository suscripcionRepository,
+            UsuarioRepository usuarioRepository,
+            AuthenticatedUserResolver userResolver,
+            UrlSecurityValidator urlSecurityValidator
+    ) {
         this.pagoManualRepository = pagoManualRepository;
         this.suscripcionRepository = suscripcionRepository;
         this.usuarioRepository = usuarioRepository;
         this.userResolver = userResolver;
+        this.urlSecurityValidator = urlSecurityValidator;
     }
 
     @Transactional
@@ -38,6 +47,7 @@ public class PaymentService {
         if (usuario == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
         }
+        urlSecurityValidator.validateSafeUrl(comprobanteUrl);
 
         PagoManual pagoManual = new PagoManual(usuario, comprobanteUrl, EstadoPago.PENDING);
         pagoManualRepository.save(pagoManual);

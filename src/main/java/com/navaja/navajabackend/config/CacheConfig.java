@@ -11,6 +11,10 @@ import java.util.List;
 @Configuration
 public class CacheConfig {
 
+    /**
+     *
+     * @return
+     */
     @Bean
     public CacheManager cacheManager() {
         SimpleCacheManager cacheManager = new SimpleCacheManager();

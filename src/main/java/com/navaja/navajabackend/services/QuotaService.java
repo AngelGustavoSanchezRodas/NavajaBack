@@ -13,7 +13,6 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -23,7 +22,6 @@ public class QuotaService {
     private static final Duration VENTANA_USO = Duration.ofHours(24);
     private static final int LIMITE_GRATIS_ENLACES = 3;
     private static final int LIMITE_GRATIS_QR = 4;
-    private static final int LIMITE_GRATIS_FIRMAS = 1;
     private static final int LIMITE_GRATIS_CONVERSIONES = 5;
     private static final int LIMITE_INVITADO_ENLACES = 1;
     private static final int LIMITE_INVITADO_QR = 1;
@@ -91,21 +89,6 @@ public class QuotaService {
         }
     }
 
-    public void validarCreacionFirma(String usuarioId, String templateId) {
-        if (templateId == null || templateId.isBlank()) {
-            throw new IllegalArgumentException("El campo templateId es obligatorio para crear una firma");
-        }
-
-        Set<String> TEMPLATES_BASICOS = Set.of("1", "2");
-        String templateNormalizado = templateId.trim();
-
-        if (!TEMPLATES_BASICOS.contains(templateNormalizado)) {
-            if (!validarPlanPremium(usuarioId)) {
-                throw new AccesoDenegadoException("La plantilla seleccionada es exclusiva del plan PRO");
-            }
-        }
-    }
-
     public void validarCreacionAcortador(String usuarioId, String identificadorCliente) {
         validarUso("STANDARD", usuarioId, identificadorCliente);
     }
@@ -128,17 +111,6 @@ public class QuotaService {
 
     public void registrarUsoConversionImagen(String usuarioId, String identificadorCliente) {
         registrarUso("IMAGE_CONVERSION", usuarioId, identificadorCliente);
-    }
-
-    public void registrarCreacionFirma(String usuarioId, String identificadorCliente) {
-        registrarUso("SIGNATURE", usuarioId, identificadorCliente);
-    }
-
-    public void validarUsoFirma(String usuarioId, String identificadorCliente) {
-        if (!StringUtils.hasText(usuarioId)) {
-            throw new AccesoDenegadoException("Las firmas requieren una cuenta registrada");
-        }
-        validarUso("SIGNATURE", usuarioId, identificadorCliente);
     }
 
     private void validarUso(String tipoUso, String usuarioId, String identificadorCliente) {
@@ -194,7 +166,6 @@ public class QuotaService {
         return switch (tipoUso) {
             case "STANDARD" -> esUsuarioRegistrado ? LIMITE_GRATIS_ENLACES : LIMITE_INVITADO_ENLACES;
             case "QR" -> esUsuarioRegistrado ? LIMITE_GRATIS_QR : LIMITE_INVITADO_QR;
-            case "SIGNATURE" -> esUsuarioRegistrado ? LIMITE_GRATIS_FIRMAS : 0;
             case "IMAGE_CONVERSION" -> esUsuarioRegistrado ? LIMITE_GRATIS_CONVERSIONES : LIMITE_INVITADO_CONVERSIONES;
             default -> throw new IllegalArgumentException("Tipo de uso desconocido: " + tipoUso);
         };
@@ -208,7 +179,6 @@ public class QuotaService {
             case "QR" -> StringUtils.hasText(usuarioId)
                     ? "Has alcanzado el límite de 4 códigos QR gratuitos. Actualiza a PRO para crear ilimitados."
                     : "Has alcanzado el límite de 1 código QR temporal. Vuelve a intentarlo después de 24 horas.";
-            case "SIGNATURE" -> "Los usuarios gratuitos solo pueden tener 1 firma activa";
             case "IMAGE_CONVERSION" -> StringUtils.hasText(usuarioId)
                     ? "Has alcanzado el límite de 5 conversiones de imagen gratuitas. Actualiza a PRO."
                     : "Has alcanzado el límite temporal de conversiones. Vuelve a intentarlo después de 24 horas.";

@@ -22,7 +22,7 @@ public class ServicioJwt {
     private final long expirationMillis;
 
     public ServicioJwt(
-            @Value("${app.jwt.secret:NavajaBackJwtSecretKey1234567890123456}") String secret,
+            @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expiration-millis:86400000}") long expirationMillis
     ) {
         this.secretKey = buildKey(secret);
@@ -70,11 +70,13 @@ public class ServicioJwt {
     }
 
     private SecretKey buildKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT secret no configurado");
+        }
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
-            keyBytes = "NavajaBackJwtSecretKey1234567890123456".getBytes(StandardCharsets.UTF_8);
+            throw new IllegalStateException("JWT secret inválido: se requieren al menos 32 bytes");
         }
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
-
